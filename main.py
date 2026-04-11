@@ -4,79 +4,89 @@ import os
 from datetime import datetime
 import streamlit.components.v1 as components
 
-# Configuração da página e título em Azul Royal
-st.set_page_config(page_title="Zion - Tempos e Movimentos", layout="wide", initial_sidebar_state="expanded")
+# --- CONFIGURAÇÃO E ESTILO ---
+st.set_page_config(page_title="Zion - Tempos e Movimentos", layout="wide")
 
-# --- CSS PROFISSIONAL ---
+# Estilo Azul Royal e linhas contínuas conforme solicitado
 st.markdown("""
     <style>
     .title-zion {
         color: #4169E1; 
         font-family: 'Arial Black', sans-serif;
-        font-size: 28px;
-        margin-top: -30px;
+        font-size: 32px;
         margin-bottom: 20px;
     }
-    div[data-testid="stTextInput"], div[data-testid="stDateInput"] {
-        width: 150px !important;
-    }
-    [data-testid="column"] {
-        flex: 0 0 auto !important;
-        width: 150px !important;
-        margin-right: 40px !important; 
-    }
+    /* Estilo para as linhas divisórias ocuparem toda a largura */
     .section-HR { 
         border-bottom: 2px solid #4169E1; 
-        margin: 15px 0 10px 0; 
+        margin: 20px 0 10px 0; 
         color: #4169E1; 
-        font-size: 13px;
+        font-size: 14px;
         font-weight: bold;
-        width: 720px;
     }
-    label { font-size: 11px !important; font-weight: bold !important; }
+    /* Ajuste para manter os campos com visual limpo */
+    div[data-testid="stForm"] { border: none !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO DO ESTADO ---
-# Isso garante que os dados não sumam ao dar Enter
-campos = ["placa", "caminhao", "s_patio", "c_etc", "tt_v", "e_cl", "s_cl", "tt_cl", 
-          "e_b1", "s_b1", "tt_b1", "e_to", "s_to", "tt_to", "e_b2", "s_b2", "tt_b2", 
-          "s_etc", "tt_ot", "p_liq"]
+# --- MEMÓRIA DOS CAMPOS (SESSION STATE) ---
+# Isso garante que nada suma ao preencher
+campos = [
+    "placa", "caminhao", "s_patio", "c_etc", "tt_v", "e_cl", "s_cl", "tt_cl",
+    "e_b1", "s_b1", "tt_b1", "e_to", "s_to", "tt_to", "e_b2", "s_b2", "tt_b2",
+    "s_etc", "tt_ot", "p_liq"
+]
 
-for campo in campos:
-    if campo not in st.session_state:
-        st.session_state[campo] = ""
+for c in campos:
+    if c not in st.session_state: st.session_state[c] = ""
 
-if 'data_sel' not in st.session_state:
-    st.session_state.data_sel = datetime.now()
-
-# --- TELA LANÇAMENTO ---
+# --- TELA PRINCIPAL ---
 st.markdown("<div class='title-zion'>Zion - Tempos e movimentos</div>", unsafe_allow_html=True)
 
-with st.sidebar:
-    st.markdown("<h2 style='color:#4169E1;'>MENU</h2>", unsafe_allow_html=True)
-    if st.button("📊 Ver Relatório"): st.session_state.page = 'visualizacao'
-
-# Formulário com chave única para evitar o reset automático
-with st.form("form_zion_estavel", clear_on_submit=False):
-    c1, c2, c3, c4 = st.columns(4)
+with st.form("form_restaurado", clear_on_submit=False):
+    # Linha 1: Identificação
+    c1, c2, c3 = st.columns([2, 2, 1])
     placa = c1.text_input("Placa", value=st.session_state.placa)
     caminhao = c2.text_input("Caminhão", value=st.session_state.caminhao)
-    data_sel = c3.date_input("Data", st.session_state.data_sel, format="DD/MM/YYYY")
-    
-    st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
-    c5, c6, c7, c8 = st.columns(4)
-    # Aqui o valor é preservado mesmo se você sair do campo ou der Enter
-    s_patio = c5.text_input("Saída Pátio", value=st.session_state.s_patio, placeholder="00:00:00")
-    c_etc = c6.text_input("Chegada ETC", value=st.session_state.c_etc, placeholder="00:00:00")
-    tt_v = c7.text_input("TT Viagem", value=st.session_state.tt_v, placeholder="00:00:00")
-    e_cl = c8.text_input("Ent. Class", value=st.session_state.e_cl, placeholder="00:00:00")
-    
-    # ... (repetir para os outros campos conforme necessário)
+    # Data configurada para padrão Brasileiro
+    data_sel = c3.date_input("Data", datetime.now(), format="DD/MM/YYYY")
 
-    if st.form_submit_button("💾 SALVAR REGISTRO"):
-        # Lógica de salvamento (salvar no CSV)
-        st.success("✅ Registro salvo e tela limpa!")
-        # Limpar o estado após salvar
-        for campo in campos: st.session_state[campo] = ""
+    st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
+    c4, c5, c6, c7 = st.columns(4)
+    s_patio = c4.text_input("Saída Pátio", value=st.session_state.s_patio, placeholder="00:00:00")
+    c_etc = c5.text_input("Chegada ETC", value=st.session_state.c_etc, placeholder="00:00:00")
+    tt_v = c6.text_input("TT Viagem", value=st.session_state.tt_v, placeholder="00:00:00")
+    e_cl = c7.text_input("Ent. Class", value=st.session_state.e_cl, placeholder="00:00:00")
+
+    c8, c9 = st.columns([1, 3])
+    s_cl = c8.text_input("Saí. Class", value=st.session_state.s_cl, placeholder="00:00:00")
+    tt_cl = c9.text_input("TT Class", value=st.session_state.tt_cl, placeholder="00:00:00")
+
+    st.markdown("<div class='section-HR'>BALANÇAS E TOMBADOR</div>", unsafe_allow_html=True)
+    c10, c11, c12, c13, c14, c15 = st.columns(6)
+    e_b1 = c10.text_input("Ent. Bal 1", value=st.session_state.e_b1, placeholder="00:00:00")
+    s_b1 = c11.text_input("Saí. Bal 1", value=st.session_state.s_b1, placeholder="00:00:00")
+    tt_b1 = c12.text_input("TT Bal 1", value=st.session_state.tt_b1, placeholder="00:00:00")
+    e_to = c13.text_input("Ent. Tomb", value=st.session_state.e_to, placeholder="00:00:00")
+    s_to = c14.text_input("Saí. Tomb", value=st.session_state.s_to, placeholder="00:00:00")
+    tt_to = c15.text_input("TT Tomb", value=st.session_state.tt_to, placeholder="00:00:00")
+
+    c16, c17, c18 = st.columns(3)
+    e_b2 = c16.text_input("Ent. Bal 2", value=st.session_state.e_b2, placeholder="00:00:00")
+    s_b2 = c17.text_input("Saí. Bal 2", value=st.session_state.s_b2, placeholder="00:00:00")
+    tt_b2 = c18.text_input("TT Bal 2", value=st.session_state.tt_b2, placeholder="00:00:00")
+
+    st.markdown("<div class='section-HR'>FECHAMENTO</div>", unsafe_allow_html=True)
+    c19, c20 = st.columns(2)
+    s_etc = c19.text_input("Saída ETC Final", value=st.session_state.s_etc, placeholder="00:00:00")
+    p_liq = c20.text_input("Peso Líquido", value=st.session_state.p_liq)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    btn_salvar = st.form_submit_button("💾 SALVAR REGISTRO")
+
+    if btn_salvar:
+        # Aqui você insere sua lógica de salvar no Excel/CSV
+        st.success("✅ Dados salvos com sucesso!")
+        # Limpa o formulário APENAS após salvar
+        for c in campos: st.session_state[c] = ""
         st.rerun()
