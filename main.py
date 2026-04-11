@@ -4,15 +4,13 @@ import os
 from datetime import datetime
 
 # =========================================================
-# 🔑 GESTÃO DE USUÁRIOS E PERMISSÕES (ALERE AQUI)
+# 🔑 GESTÃO DE USUÁRIOS E PERMISSÕES
 # =========================================================
-# Formato: "usuario": {"senha": "123", "perfil": "supervisor" ou "operador"}
 USUARIOS = {
     "admin": {"senha": "123", "perfil": "supervisor"},
     "alex": {"senha": "porto", "perfil": "supervisor"},
     "operador1": {"senha": "123", "perfil": "operador"}
 }
-# =========================================================
 
 # Configuração da página
 st.set_page_config(page_title="Aurora Port - Grãos", layout="wide")
@@ -36,17 +34,18 @@ COLUNAS = [
 if not os.path.exists(DB_FILE):
     pd.DataFrame(columns=COLUNAS).to_csv(DB_FILE, index=False)
 
-# Controle de Sessão
+# --- CONTROLE DE SESSÃO (CORRIGIDO) ---
 if 'page' not in st.session_state:
     st.session_state.page = 'login'
 if 'perfil' not in st.session_state:
     st.session_state.perfil = None
 
-# Função para calcular diferença de tempo simples (HH:MM)
+# Função para calcular diferença de tempo
 def calc_tt(inicio, fim):
     try:
         fmt = '%H:%M'
         tdelta = datetime.strptime(fim, fmt) - datetime.strptime(inicio, fmt)
+        # Formata para mostrar apenas HH:MM:SS
         return str(tdelta)
     except:
         return "00:00"
@@ -62,19 +61,27 @@ if st.session_state.page == 'login':
         p = st.text_input("Senha", type="password")
         if st.button("ACESSAR"):
             if u in USUARIOS and USUARIOS[u]["senha"] == p:
-                st.session_state.page = 'lancamento'
                 st.session_state.perfil = USUARIOS[u]["perfil"]
+                st.session_state.page = 'lancamento'
                 st.rerun()
             else:
                 st.error("Usuário ou senha inválidos.")
 
 # --- TELA 2: LANÇAMENTOS ---
 elif st.session_state.page == 'lancamento':
-    st.sidebar.title(f"Perfil: {st.session_state.perfil.upper()}")
+    # Verificação de segurança: se o perfil sumir, volta pro login
+    if st.session_state.perfil is None:
+        st.session_state.page = 'login'
+        st.rerun()
+
+    perfil_nome = str(st.session_state.perfil).upper()
+    st.sidebar.title(f"Perfil: {perfil_nome}")
+    
     if st.sidebar.button("📊 Visualizar Tabela"):
         st.session_state.page = 'visualizacao'
         st.rerun()
     if st.sidebar.button("🚪 Sair"):
+        st.session_state.perfil = None
         st.session_state.page = 'login'
         st.rerun()
 
@@ -83,19 +90,15 @@ elif st.session_state.page == 'lancamento':
     with st.form("form_dados"):
         c1, c2, c3 = st.columns(3)
         
-        # Grupo 1: Viagem
         s_patio = c1.text_input("SAÍDA DO PÁTIO (HH:MM)")
         c_etc = c1.text_input("CHEGADA ETC (HH:MM)")
         
-        # Grupo 2: Classificação
         e_class = c2.text_input("ENTR. CLASSIFIC (HH:MM)")
         s_class = c2.text_input("SAÍDA CLASSIFICAÇÃO (HH:MM)")
         
-        # Grupo 3: Balança
         e_bal = c3.text_input("ENTR. BALANÇA (HH:MM)")
         s_bal = c3.text_input("SAÍDA BALANÇA (HH:MM)")
         
-        # Grupo 4: Tombador (abaixo)
         c4, c5, c6 = st.columns(3)
         e_tom = c4.text_input("ENTRADA TOMBADOR (HH:MM)")
         s_tom = c4.text_input("SAÍDA TOMBADOR (HH:MM)")
@@ -116,30 +119,25 @@ elif st.session_state.page == 'lancamento':
             df.to_csv(DB_FILE, index=False)
             st.success("✅ Lançado com sucesso!")
 
-# --- TELA 3: VISUALIZAÇÃO E EXPORTAÇÃO ---
+# --- TELA 3: VISUALIZAÇÃO ---
 elif st.session_state.page == 'visualizacao':
+    if st.session_state.perfil is None:
+        st.session_state.page = 'login'
+        st.rerun()
+
     st.sidebar.button("⬅️ Voltar ao Lançamento", on_click=lambda: st.session_state.update(page='lancamento'))
     
     st.markdown("## 📊 Tabela Geral")
-    df = pd.read_csv(DB_FILE)
-    st.dataframe(df, use_container_width=True)
+    if os.path.exists(DB_FILE):
+        df = pd.read_csv(DB_FILE)
+        st.dataframe(df, use_container_width=True)
 
-    # --- ÁREA EXCLUSIVA DO SUPERVISOR ---
-    if st.session_state.perfil == "supervisor":
-        st.markdown("---")
-        st.markdown("### 🛠️ Área do Supervisor (Exportação)")
-        col_ex1, col_ex2 = st.columns(2)
-        
-        # Exportar Excel
-        with col_ex1:
-            st.download_button(
-                label="📥 Baixar em Excel",
-                data=df.to_csv(index=False).encode('utf-8'),
-                file_name=f"Relatorio_Aurora_{datetime.now().strftime('%d%m%Y')}.csv",
-                mime="text/csv"
-            )
-        
-        with col_ex2:
-            st.info("Para PDF: Use a opção 'Imprimir' (Ctrl+P) do seu navegador e salve como PDF. É a forma mais estável para relatórios web.")
+        if st.session_state.perfil == "supervisor":
+            st.markdown("---")
+            st.markdown("### 🛠️ Área do Supervisor")
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Baixar Planilha Excel (CSV)", csv, "relatorio_aurora.csv", "text/csv")
+        else:
+            st.warning("Acesso de visualização. Exportação disponível apenas para supervisores.")
     else:
-        st.warning("⚠️ Você não tem permissão para exportar dados. Apenas supervisores.")
+        st.info("Nenhum dado registrado ainda.")
