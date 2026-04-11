@@ -11,7 +11,7 @@ USUARIOS = {
     "operador1": {"senha": "123", "perfil": "OPERADOR"}
 }
 
-st.set_page_config(page_title="Aurora Port", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Aurora Port", layout="wide", initial_sidebar_state="expanded")
 
 # --- MÁSCARA JS ---
 def inject_mask():
@@ -37,33 +37,29 @@ def inject_mask():
         """, height=0
     )
 
-# --- CSS PARA CAMPOS ESTREITOS E ESPAÇAMENTO ---
+# --- CSS ULTRA COMPACTO (CAMPOS DE 4CM / 150PX) ---
 st.markdown("""
     <style>
-    /* Ajuste de largura máxima dos campos (aprox 4cm/150px) e distância lateral */
-    [data-testid="column"] {
-        max-width: 150px !important; 
-        padding-right: 20px !important; /* Distância horizontal entre campos */
+    /* Trava a largura dos campos em aprox 4cm */
+    div[data-testid="stTextInput"], div[data-testid="stDateInput"] {
+        width: 150px !important;
     }
     
-    /* Ajuste específico para a tela de Login ficar centralizada e estreita */
-    .login-box {
-        max-width: 200px;
-        margin: auto;
+    /* Remove espaços vazios e compacta o layout */
+    .block-container {
+        padding-top: 1rem !important;
+        max-width: 600px !important; /* Estreita a área total de preenchimento */
+        margin-left: 0 !important;   /* Alinha à esquerda */
     }
 
-    .main .block-container {
-        padding-top: 2rem !important;
-    }
-    
     .stTextInput>div>div>input {
         height: 1.8rem !important;
         font-size: 12px !important;
     }
-    
+
     label {
         font-size: 11px !important;
-        white-space: nowrap !important;
+        margin-bottom: 0px !important;
     }
 
     .section-HR { 
@@ -74,11 +70,10 @@ st.markdown("""
         font-weight: bold;
     }
     
-    .title-text { 
-        text-align: center; 
-        color: #004b87; 
-        font-size: 20px; 
-        margin-bottom: 20px;
+    /* Botões da Sidebar */
+    section[data-testid="stSidebar"] .stButton button {
+        width: 100%;
+        text-align: left;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -97,29 +92,30 @@ if not os.path.exists(DB_FILE):
 
 if 'page' not in st.session_state: st.session_state.page = 'login'
 
-# --- TELA DE LOGIN (ESTREITA) ---
-if st.session_state.page == 'login':
-    st.markdown("<h1 class='title-text'>AURORA</h1>", unsafe_allow_html=True)
-    c_log1, c_log2, c_log3 = st.columns([1, 1, 1])
-    with c_log2: # Usa a coluna do meio para centralizar
-        u = st.text_input("Usuário")
-        p = st.text_input("Senha", type="password")
-        if st.button("ACESSAR"):
-            if u in USUARIOS and USUARIOS[u]["senha"] == p:
-                st.session_state.perfil = USUARIOS[u]["perfil"]
-                st.session_state.page = 'lancamento'
-                st.rerun()
-
-# --- TELA DE LANÇAMENTOS (CAMPOS 4CM + DISTANCIA 2CM) ---
-elif st.session_state.page == 'lancamento':
-    col_nav1, col_nav2 = st.columns([1, 1])
-    with col_nav1:
-        if st.button("📊 Tabela"): st.session_state.page = 'visualizacao'; st.rerun()
-    with col_nav2:
+# --- NAVEGAÇÃO LATERAL ESQUERDA ---
+if st.session_state.page != 'login':
+    with st.sidebar:
+        st.title("AURORA")
+        st.write(f"Usuário: **{st.session_state.perfil}**")
+        if st.button("📝 Novo Lançamento"): st.session_state.page = 'lancamento'; st.rerun()
+        if st.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
+        st.markdown("---")
         if st.button("⬅️ Sair"): st.session_state.page = 'login'; st.rerun()
 
+# --- TELA DE LOGIN ---
+if st.session_state.page == 'login':
+    st.title("AURORA - Login")
+    u = st.text_input("Usuário", key="user")
+    p = st.text_input("Senha", type="password", key="pass")
+    if st.button("ACESSAR"):
+        if u in USUARIOS and USUARIOS[u]["senha"] == p:
+            st.session_state.perfil = USUARIOS[u]["perfil"]
+            st.session_state.page = 'lancamento'
+            st.rerun()
+
+# --- TELA DE LANÇAMENTOS (COMPACTA) ---
+elif st.session_state.page == 'lancamento':
     with st.form("form_aurora"):
-        # Seção 1
         c1, c2, c3 = st.columns(3)
         placa = c1.text_input("Placa")
         caminhao = c2.text_input("Caminhão")
@@ -158,13 +154,35 @@ elif st.session_state.page == 'lancamento':
         tt_ot = c20.text_input("TT Total", placeholder="00:00:00")
         p_liq = c21.text_input("Peso Líq.")
 
-        if st.form_submit_button("SALVAR"):
-            # Lógica de salvar permanece a mesma com os 21 campos
-            st.success("Salvo!")
+        if st.form_submit_button("SALVAR REGISTRO"):
+            novo = {
+                "PLACA": placa.upper(), "CAMINHÃO": caminhao.upper(), "DATA": data_sel.strftime("%d/%m/%Y"),
+                "SAÍDA PÁTIO": s_patio, "CHEGADA ETC": c_etc, "TT VIAGEM": tt_v,
+                "ENT. CLASSIF": e_cl, "SAÍ. CLASSIF": s_cl, "TT CLASSIF": tt_cl,
+                "ENT. BAL 1": e_b1, "SAÍ. BAL 1": s_b1, "TT BAL 1": tt_b1,
+                "ENT. TOMB": e_to, "SAÍ. TOMB": s_to, "TT TOMB": tt_to,
+                "ENT. BAL 2": e_b2, "SAÍ. BAL 2": s_b2, "TT BAL 2": tt_b2,
+                "SAÍDA ETC": s_etc, "TT OPERAÇÃO": tt_ot, "PESO LÍQUIDO": p_liq
+            }
+            df = pd.read_csv(DB_FILE)
+            df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
+            df.to_csv(DB_FILE, index=False)
+            st.success("✅ Salvo!")
             st.rerun()
 
     inject_mask()
 
+# --- TELA DE VISUALIZAÇÃO COM EXPORT EXCEL ---
 elif st.session_state.page == 'visualizacao':
-    if st.button("Voltar"): st.session_state.page = 'lancamento'; st.rerun()
-    st.dataframe(pd.read_csv(DB_FILE), use_container_width=True)
+    st.subheader("Tabela de Registros")
+    df = pd.read_csv(DB_FILE)
+    st.dataframe(df, use_container_width=True)
+    
+    # Botão de Exportação para Excel
+    csv = df.to_csv(index=False).encode('utf-8')
+    st.download_button(
+        label="📥 Baixar Excel (CSV)",
+        data=csv,
+        file_name='relatorio_porto.csv',
+        mime='text/csv',
+    )
