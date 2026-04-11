@@ -5,19 +5,16 @@ import streamlit.components.v1 as components
 from datetime import datetime
 import pandas as pd
 
-# --- CONEXÃO COM A PLANILHA ---
+# --- CONEXÃO SEGURA ---
 def conectar_planilha():
-    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     creds_info = st.secrets["gcp_service_account"]
+    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     creds = Credentials.from_service_account_info(creds_info, scopes=scope)
-    client = gspread.authorize(creds)
-    # Abre a planilha 'Zion' na aba 'Tempo'
-    return client.open("Zion").worksheet("Tempo")
+    return gspread.authorize(creds).open("Zion").worksheet("Tempo")
 
-# --- CONFIGURAÇÃO DA PÁGINA ---
+# --- CONFIGURAÇÃO VISUAL (RESOLVE FUNDO E BLOCOS BRANCOS) ---
 st.set_page_config(page_title="Zion Portuário", layout="wide", initial_sidebar_state="collapsed")
 
-# --- ESTILIZAÇÃO CSS (LEGENDA PRETA E FUNDO DE GRÃOS) ---
 st.markdown("""
     <style>
     .stApp {
@@ -25,18 +22,22 @@ st.markdown("""
         url("https://raw.githubusercontent.com/Claudio-Zion/zion-port/main/image_fb1881.jpg");
         background-size: cover; background-attachment: fixed;
     }
-    /* Legendas em preto e negrito */
-    label { color: black !important; font-weight: bold !important; font-size: 16px !important; }
-    .main-title { color: #1E3A8A; text-align: center; font-family: 'Arial Black'; font-size: 40px; background: rgba(255,255,255,0.8); padding: 15px; border-radius: 10px; }
-    .stButton>button { width: 100%; font-weight: bold; border-radius: 8px; height: 3em; }
-    .card-branco { background: rgba(255, 255, 255, 0.9); padding: 25px; border-radius: 15px; border: 1px solid #ccc; margin-bottom: 20px; }
+    /* Remove retângulos brancos e espaços vazios no topo */
+    .block-container { padding-top: 0rem !important; }
+    div[data-testid="stVerticalBlock"] > div:empty { display: none !important; }
+    
+    /* Legendas Pretas e Nítidas */
+    label, p, h3 { color: black !important; font-weight: bold !important; font-size: 18px !important; }
+    
+    /* Estilo dos Inputs */
+    .stTextInput>div>div>input { background-color: white !important; color: black !important; border: 2px solid #1E3A8A !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- MÁSCARA JS (A SOLUÇÃO PARA A HORA NÃO SUMIR) ---
+# --- MÁSCARA JAVASCRIPT ---
 components.html("""
     <script>
-    const applyMask = (e) => {
+    const maskTime = (e) => {
         let v = e.target.value.replace(/\D/g,'');
         if (v.length > 6) v = v.slice(0,6);
         if (v.length > 4) v = v.replace(/(\d{2})(\d{2})(\d{2})/, "$1:$2:$3");
@@ -46,7 +47,7 @@ components.html("""
     setInterval(() => {
         window.parent.document.querySelectorAll('input[placeholder="00:00:00"]').forEach(i => {
             if(!i.dataset.maskOn) { 
-                i.addEventListener('input', applyMask); i.dataset.maskOn = '1';
+                i.addEventListener('input', maskTime); i.dataset.maskOn = '1';
                 i.onblur = () => { i.dispatchEvent(new Event('change', { bubbles: true })); };
             }
         });
@@ -54,90 +55,70 @@ components.html("""
     </script>
     """, height=0)
 
-# --- CONTROLE DE FLUXO ---
-if 'etapa' not in st.session_state: st.session_state.etapa = 'apresentacao'
+# --- GERENCIAMENTO DE TELAS E MEMÓRIA ---
+if 'etapa' not in st.session_state: st.session_state.etapa = 'login'
+# Memória dos campos para a hora não sumir
+for campo in ['h1', 'h2', 'h3', 'placa', 'cam']:
+    if campo not in st.session_state: st.session_state[campo] = ""
 
-# --- 1. TELA DE APRESENTAÇÃO ---
-if st.session_state.etapa == 'apresentacao':
-    st.markdown("<h1 class='main-title'>ZION PORTUÁRIO</h1>", unsafe_allow_html=True)
-    st.image("https://raw.githubusercontent.com/Claudio-Zion/zion-port/main/image_fb1881.jpg", use_column_width=True)
-    if st.button("👉 CLIQUE PARA ENTRAR NO SISTEMA"):
-        st.session_state.etapa = 'login'
-        st.rerun()
-
-# --- 2. TELA DE LOGIN ---
-elif st.session_state.etapa == 'login':
-    st.markdown("<h1 class='main-title'>LOGIN DE ACESSO</h1>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1, 1, 1])
+# --- 1. LOGIN ---
+if st.session_state.etapa == 'login':
+    st.markdown("<h1 style='text-align:center; color:black;'>ACESSO ZION</h1>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1,1,1])
     with c2:
-        st.markdown("<div class='card-branco'>", unsafe_allow_html=True)
-        u = st.text_input("USUÁRIO")
-        s = st.text_input("SENHA", type="password")
-        perf = st.selectbox("PERFIL", ["LOGÍSTICA", "BALANÇA", "TOMBADOR", "FECHAMENTO"])
-        if st.button("ENTRAR"):
-            if u == "admin" and s == "zion123":
+        user = st.text_input("USUÁRIO")
+        senha = st.text_input("SENHA", type="password")
+        perf = st.selectbox("ESTAÇÃO", ["LOGÍSTICA", "BALANÇA", "TOMBADOR"])
+        if st.button("ENTRAR NO SISTEMA"):
+            if user == "admin" and senha == "zion123":
                 st.session_state.perfil = perf
                 st.session_state.etapa = 'menu'
                 st.rerun()
-            else: st.error("Acesso Negado")
-        st.markdown("</div>", unsafe_allow_html=True)
 
-# --- 3. MENU PRINCIPAL ---
+# --- 2. MENU ---
 elif st.session_state.etapa == 'menu':
-    st.markdown(f"<h1 class='main-title'>MENU: {st.session_state.perfil}</h1>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📝 REALIZAR LANÇAMENTOS"): st.session_state.etapa = 'operacao'; st.rerun()
-    with col2:
-        if st.button("🚪 SAIR DO SISTEMA"): st.session_state.etapa = 'login'; st.rerun()
+    st.markdown(f"<h1 style='text-align:center; color:black;'>MENU: {st.session_state.perfil}</h1>", unsafe_allow_html=True)
+    if st.button("📝 INICIAR LANÇAMENTOS"): st.session_state.etapa = 'form'; st.rerun()
+    if st.button("🔙 VOLTAR PARA LOGIN"): st.session_state.etapa = 'login'; st.rerun()
 
-# --- 4. TELA DE OPERAÇÃO ---
-elif st.session_state.etapa == 'operacao':
-    st.markdown(f"<h1 class='main-title'>ESTAÇÃO {st.session_state.perfil}</h1>", unsafe_allow_html=True)
+# --- 3. FORMULÁRIO (AQUI A HORA FICA PRESA) ---
+elif st.session_state.etapa == 'form':
+    st.markdown(f"<h1 style='text-align:center; color:black;'>ESTAÇÃO {st.session_state.perfil}</h1>", unsafe_allow_html=True)
     
-    # Botão de Voltar ao Menu
-    if st.button("⬅️ VOLTAR AO MENU"):
-        st.session_state.etapa = 'menu'
-        st.rerun()
+    if st.button("⬅️ VOLTAR AO MENU"): st.session_state.etapa = 'menu'; st.rerun()
 
-    st.markdown("<div class='card-branco'>", unsafe_allow_html=True)
-    with st.form("form_dados", clear_on_submit=True):
-        # Campos de Identificação
+    with st.form("meu_formulario", clear_on_submit=False):
         c1, c2, c3 = st.columns(3)
-        placa = c1.text_input("PLACA DO VEÍCULO")
-        cam = c2.text_input("TIPO DE CAMINHÃO")
+        placa = c1.text_input("PLACA DO VEÍCULO", value=st.session_state.placa)
+        cam = c2.text_input("TIPO DE CAMINHÃO", value=st.session_state.cam)
         data = c3.text_input("DATA", value=datetime.now().strftime("%d/%m/%Y"))
 
         st.markdown("---")
-        # Campos Dinâmicos conforme Perfil
-        h1, h2, h3 = st.columns(3)
+        h1_col, h2_col, h3_col = st.columns(3)
+        
+        # Atribuindo os valores à memória da sessão
         if st.session_state.perfil == "LOGÍSTICA":
-            val1 = h1.text_input("SAÍDA PÁTIO", placeholder="00:00:00")
-            val2 = h2.text_input("CHEGADA ETC", placeholder="00:00:00")
-            val3 = h3.text_input("ENTRADA CLASSIFIC.", placeholder="00:00:00")
-        elif st.session_state.perfil == "BALANÇA":
-            val1 = h1.text_input("ENTRADA BALANÇA", placeholder="00:00:00")
-            val2 = h2.text_input("SAÍDA BALANÇA", placeholder="00:00:00")
-            val3 = ""
-        elif st.session_state.perfil == "TOMBADOR":
-            val1 = h1.text_input("ENTRADA TOMBADOR", placeholder="00:00:00")
-            val2 = h2.text_input("SAÍDA TOMBADOR", placeholder="00:00:00")
-            val3 = ""
+            v1 = h1_col.text_input("SAÍDA PÁTIO", placeholder="00:00:00", value=st.session_state.h1)
+            v2 = h2_col.text_input("CHEGADA ETC", placeholder="00:00:00", value=st.session_state.h2)
+            v3 = h3_col.text_input("ENTRADA CLASSIFIC.", placeholder="00:00:00", value=st.session_state.h3)
+        else:
+            v1 = h1_col.text_input("ENTRADA", placeholder="00:00:00")
+            v2 = h2_col.text_input("SAÍDA", placeholder="00:00:00")
+            v3 = ""
 
-        if st.form_submit_button("🚀 SALVAR REGISTRO"):
+        if st.form_submit_button("✅ SALVAR NA PLANILHA"):
             try:
                 sheet = conectar_planilha()
-                # Segue a ordem da planilha image_057281.png
-                sheet.append_row([placa, cam, data, val1, val2, "", val3])
-                st.success("✅ Lançamento realizado com sucesso!")
-            except Exception as e: st.error(f"Erro ao salvar: {e}")
-    st.markdown("</div>", unsafe_allow_html=True)
+                sheet.append_row([placa, cam, data, v1, v2, "", v3])
+                st.success("LANÇAMENTO REALIZADO!")
+                # Limpa a memória após salvar
+                for k in ['h1', 'h2', 'h3', 'placa', 'cam']: st.session_state[k] = ""
+            except Exception as e: st.error(f"Erro: {e}")
 
-    # --- TABELA DE CONFERÊNCIA (Ponto 5 solicitado) ---
-    st.markdown("<div class='card-branco'>", unsafe_allow_html=True)
-    st.subheader("📋 Conferência de Lançamentos")
+    # --- TABELA DE CONFERÊNCIA (PONTO 5) ---
+    st.markdown("### 📊 ÚLTIMOS REGISTROS NA PLANILHA")
     if st.button("🔄 ATUALIZAR TABELA"):
-        sheet = conectar_planilha()
-        df = pd.DataFrame(sheet.get_all_records())
-        st.dataframe(df.tail(10), use_container_width=True) # Mostra os últimos 10
-    st.markdown("</div>", unsafe_allow_html=True)
+        try:
+            df = pd.DataFrame(conectar_planilha().get_all_records())
+            st.dataframe(df.tail(10), use_container_width=True)
+        except: st.info("Carregando dados...")
