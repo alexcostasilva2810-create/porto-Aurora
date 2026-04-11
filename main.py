@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import streamlit.components.v1 as components
 
 # 🔑 GESTÃO DE USUÁRIOS
@@ -13,7 +13,7 @@ USUARIOS = {
 
 st.set_page_config(page_title="Aurora Port", layout="wide")
 
-# --- JAVASCRIPT PARA MÁSCARA EM TEMPO REAL ---
+# --- MÁSCARA JS (Otimizada para Mobile) ---
 def inject_mask():
     components.html(
         """
@@ -37,39 +37,31 @@ def inject_mask():
         """, height=0
     )
 
+# --- CSS PARA COMPACTAR TUDO ---
 st.markdown("""
     <style>
-    .stButton>button { width: 100%; border-radius: 5px; background-color: #004b87; color: white; font-weight: bold; }
-    .title-text { text-align: center; color: #004b87; font-family: 'Arial Black'; font-size: 40px; }
-    .section-HR { border-top: 2px solid #004b87; margin: 20px 0; padding-top: 10px; font-weight: bold; color: #004b87; }
+    /* Reduz espaçamentos para caber mais na tela do celular */
+    .block-container { padding-top: 1rem; padding-bottom: 1rem; }
+    .stTextInput>div>div>input { height: 2.5rem; }
+    .section-HR { 
+        border-top: 2px solid #004b87; 
+        margin: 15px 0 5px 0; 
+        padding-top: 5px; 
+        font-weight: bold; 
+        color: #004b87; 
+        font-size: 14px;
+    }
+    .title-text { text-align: center; color: #004b87; font-family: 'Arial Black'; font-size: 30px; margin-bottom: 10px; }
     </style>
     """, unsafe_allow_html=True)
-
-def calc_diff(inicio, fim):
-    try:
-        fmt = '%H:%M:%S'
-        t1 = datetime.strptime(inicio, fmt)
-        t2 = datetime.strptime(fim, fmt)
-        if t2 < t1: t2 += timedelta(days=1)
-        return t2 - t1
-    except: return timedelta(0)
-
-def td_to_str(td):
-    ts = int(td.total_seconds())
-    h, rem = divmod(ts, 3600)
-    m, s = divmod(rem, 60)
-    return f"{h:02d}:{m:02d}:{s:02d}"
 
 # --- BANCO DE DADOS (21 CAMPOS) ---
 DB_FILE = "dados_porto_v2.csv"
 COLUNAS = [
-    "PLACA", "CAMINHÃO", "DATA", 
-    "SAÍDA PÁTIO", "CHEGADA ETC", "TT VIAGEM",
-    "ENT. CLASSIF", "SAÍ. CLASSIF", "TT CLASSIF",
-    "ENT. BAL 1", "SAÍ. BAL 1", "TT BAL 1",
-    "ENT. TOMB", "SAÍ. TOMB", "TT TOMB",
-    "ENT. BAL 2", "SAÍ. BAL 2", "TT BAL 2",
-    "SAÍDA ETC", "TT OPERAÇÃO", "PESO LÍQUIDO"
+    "PLACA", "CAMINHÃO", "DATA", "SAÍDA PÁTIO", "CHEGADA ETC", "TT VIAGEM",
+    "ENT. CLASSIF", "SAÍ. CLASSIF", "TT CLASSIF", "ENT. BAL 1", "SAÍ. BAL 1", 
+    "TT BAL 1", "ENT. TOMB", "SAÍ. TOMB", "TT TOMB", "ENT. BAL 2", "SAÍ. BAL 2", 
+    "TT BAL 2", "SAÍDA ETC", "TT OPERAÇÃO", "PESO LÍQUIDO"
 ]
 
 if not os.path.exists(DB_FILE):
@@ -77,11 +69,10 @@ if not os.path.exists(DB_FILE):
 
 if 'page' not in st.session_state: st.session_state.page = 'login'
 
-# --- TELA 1: LOGIN ---
+# --- TELA DE LOGIN ---
 if st.session_state.page == 'login':
     st.markdown("<h1 class='title-text'>AURORA</h1>", unsafe_allow_html=True)
-    col1, col2, col3 = st.columns([1,1.2,1])
-    with col2:
+    with st.container():
         u = st.text_input("Usuário")
         p = st.text_input("Senha", type="password")
         if st.button("ACESSAR"):
@@ -90,75 +81,76 @@ if st.session_state.page == 'login':
                 st.session_state.page = 'lancamento'
                 st.rerun()
 
-# --- TELA 2: LANÇAMENTOS ---
+# --- TELA DE LANÇAMENTOS (LAYOUT COMPACTO) ---
 elif st.session_state.page == 'lancamento':
-    st.sidebar.markdown(f"## {st.session_state.perfil}")
-    if st.sidebar.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
-    if st.sidebar.button("⬅️ VOLTAR AO LOGIN"): st.session_state.page = 'login'; st.rerun()
+    st.sidebar.write(f"Acesso: **{st.session_state.perfil}**")
+    if st.sidebar.button("📊 Ver Tabela"): st.session_state.page = 'visualizacao'; st.rerun()
+    if st.sidebar.button("⬅️ Sair"): st.session_state.page = 'login'; st.rerun()
 
-    st.markdown("## 📝 Novo Registro")
-    
     with st.form("form_aurora"):
-        c1, c2, c3 = st.columns(3)
+        # Seção 1: Identificação
+        c1, c2 = st.columns(2)
         placa = c1.text_input("Placa")
         caminhao = c2.text_input("Caminhão")
-        data_sel = c3.date_input("Data da Operação", datetime.now(), format="DD/MM/YYYY")
+        data_sel = st.date_input("Data", datetime.now(), format="DD/MM/YYYY")
         
-        st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
-        c4, c5, c6, c7 = st.columns(4)
-        s_patio = c4.text_input("Saída Pátio", placeholder="00:00:00")
-        c_etc = c5.text_input("Chegada ETC", placeholder="00:00:00")
+        # Seção 2: Logística e Classificação
+        st.markdown("<div class='section-HR'>LOGÍSTICA / CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
+        c3, c4, c5 = st.columns([1,1,1])
+        s_patio = c3.text_input("Saída Pátio", placeholder="00:00:00")
+        c_etc = c4.text_input("Chegada ETC", placeholder="00:00:00")
+        tt_viagem = c5.text_input("TT Viagem", placeholder="00:00:00")
+
+        c6, c7, c8 = st.columns([1,1,1])
         e_class = c6.text_input("Ent. Classif.", placeholder="00:00:00")
         s_class = c7.text_input("Saí. Classif.", placeholder="00:00:00")
+        tt_classif = c8.text_input("TT Classif.", placeholder="00:00:00")
 
+        # Seção 3: Balanças e Tombador
         st.markdown("<div class='section-HR'>BALANÇAS E TOMBADOR</div>", unsafe_allow_html=True)
-        c8, c9, c10, c11, c12, c13 = st.columns(6)
-        e_bal1 = c8.text_input("Ent. Bal. 1", placeholder="00:00:00")
-        s_bal1 = c9.text_input("Saí. Bal. 1", placeholder="00:00:00")
-        e_tom = c10.text_input("Ent. Tomb.", placeholder="00:00:00")
-        s_tom = c11.text_input("Saí. Tomb.", placeholder="00:00:00")
-        e_bal2 = c12.text_input("Ent. Bal. 2", placeholder="00:00:00")
-        s_bal2 = c13.text_input("Saí. Bal. 2", placeholder="00:00:00")
+        c9, c10, c11 = st.columns([1,1,1])
+        e_bal1 = c9.text_input("Ent. Bal. 1", placeholder="00:00:00")
+        s_bal1 = c10.text_input("Saí. Bal. 1", placeholder="00:00:00")
+        tt_bal1 = c11.text_input("TT Bal. 1", placeholder="00:00:00")
 
+        c12, c13, c14 = st.columns([1,1,1])
+        e_tom = c12.text_input("Ent. Tomb.", placeholder="00:00:00")
+        s_tom = c13.text_input("Saí. Tomb.", placeholder="00:00:00")
+        tt_tomb = c14.text_input("TT Tomb.", placeholder="00:00:00")
+
+        c15, c16, c17 = st.columns([1,1,1])
+        e_bal2 = c15.text_input("Ent. Bal. 2", placeholder="00:00:00")
+        s_bal2 = c16.text_input("Saí. Bal. 2", placeholder="00:00:00")
+        tt_bal2 = c17.text_input("TT Bal. 2", placeholder="00:00:00")
+
+        # Seção 4: Fechamento
         st.markdown("<div class='section-HR'>FECHAMENTO</div>", unsafe_allow_html=True)
-        c14, c15 = st.columns(2)
-        s_etc_final = c14.text_input("Saída ETC Final", placeholder="00:00:00")
-        p_liq = c15.text_input("Peso Líquido")
+        c18, c19, c20 = st.columns([1,1,1])
+        s_etc_final = c18.text_input("Saída ETC Final", placeholder="00:00:00")
+        tt_total = c19.text_input("TT Operação Total", placeholder="00:00:00")
+        p_liq = c20.text_input("Peso Líquido")
 
         if st.form_submit_button("SALVAR REGISTRO"):
-            # Cálculos de todos os 6 TTs (Time Taken)
-            tt_v = calc_diff(s_patio, c_etc)
-            tt_c = calc_diff(e_class, s_class)
-            tt_b1 = calc_diff(e_bal1, s_bal1)
-            tt_t = calc_diff(e_tom, s_tom)
-            tt_b2 = calc_diff(e_bal2, s_bal2)
-            
-            # TT Total (Soma de todos)
-            tt_total = tt_v + tt_c + tt_b1 + tt_t + tt_b2
-            
             novo = {
-                "PLACA": placa.upper(), "CAMINHÃO": caminhao.upper(), 
-                "DATA": data_sel.strftime("%d/%m/%Y"),
-                "SAÍDA PÁTIO": s_patio, "CHEGADA ETC": c_etc, "TT VIAGEM": td_to_str(tt_v),
-                "ENT. CLASSIF": e_class, "SAÍ. CLASSIF": s_class, "TT CLASSIF": td_to_str(tt_c),
-                "ENT. BAL 1": e_bal1, "SAÍ. BAL 1": s_bal1, "TT BAL 1": td_to_str(tt_b1),
-                "ENT. TOMB": e_tom, "SAÍ. TOMB": s_tom, "TT TOMB": td_to_str(tt_t),
-                "ENT. BAL 2": e_bal2, "SAÍ. BAL 2": s_bal2, "TT BAL 2": td_to_str(tt_b2),
-                "SAÍDA ETC": s_etc_final, "TT OPERAÇÃO": td_to_str(tt_total), "PESO LÍQUIDO": p_liq
+                "PLACA": placa.upper(), "CAMINHÃO": caminhao.upper(), "DATA": data_sel.strftime("%d/%m/%Y"),
+                "SAÍDA PÁTIO": s_patio, "CHEGADA ETC": c_etc, "TT VIAGEM": tt_viagem,
+                "ENT. CLASSIF": e_class, "SAÍ. CLASSIF": s_class, "TT CLASSIF": tt_classif,
+                "ENT. BAL 1": e_bal1, "SAÍ. BAL 1": s_bal1, "TT BAL 1": tt_bal1,
+                "ENT. TOMB": e_tom, "SAÍ. TOMB": s_tom, "TT TOMB": tt_tomb,
+                "ENT. BAL 2": e_bal2, "SAÍ. BAL 2": s_bal2, "TT BAL 2": tt_bal2,
+                "SAÍDA ETC": s_etc_final, "TT OPERAÇÃO": tt_total, "PESO LÍQUIDO": p_liq
             }
-            
             df = pd.read_csv(DB_FILE)
             df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success(f"✅ Registro Salvo! TT Total: {td_to_str(tt_total)}")
+            st.success("✅ Salvo!")
             st.rerun()
 
     inject_mask()
 
-# --- TELA 3: VISUALIZAÇÃO ---
+# --- TELA DE VISUALIZAÇÃO ---
 elif st.session_state.page == 'visualizacao':
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update(page='lancamento'))
+    st.markdown("### Tabela de Registros")
     df = pd.read_csv(DB_FILE)
     st.dataframe(df, use_container_width=True)
-    csv = df.to_csv(index=False, sep=';', encoding='latin1').encode('latin1')
-    st.download_button("📥 Baixar Excel", csv, "relatorio_aurora.csv", "text/csv")
