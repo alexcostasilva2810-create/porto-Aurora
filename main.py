@@ -24,6 +24,7 @@ def inject_mask():
             if (v.length > 4) v = v.replace(/(\d{2})(\d{2})(\d{2})/, "$1:$2:$3");
             else if (v.length > 2) v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
             e.target.value = v;
+            // Garante que o Streamlit capture o valor antes de qualquer limpeza
             e.target.dispatchEvent(new Event('input', { bubbles: true }));
         }
         const inputs = window.parent.document.querySelectorAll('input[type="text"]');
@@ -87,7 +88,7 @@ if st.session_state.page == 'login':
                 st.session_state.page = 'lancamento'
                 st.rerun()
 
-# --- TELA 2: LANÇAMENTOS (TODOS OS CAMPOS RESTAURADOS) ---
+# --- TELA 2: LANÇAMENTOS (TODOS OS CAMPOS) ---
 elif st.session_state.page == 'lancamento':
     st.sidebar.markdown(f"## {st.session_state.perfil}")
     if st.sidebar.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
@@ -123,7 +124,7 @@ elif st.session_state.page == 'lancamento':
         p_liq = c15.text_input("Peso Líquido")
 
         if st.form_submit_button("SALVAR REGISTRO"):
-            # Cálculos automáticos de TT
+            # Cálculos de todos os tempos
             t_v = calc_diff(s_patio, c_etc)
             t_c = calc_diff(e_class, s_class)
             t_b1 = calc_diff(e_bal1, s_bal1)
@@ -144,7 +145,7 @@ elif st.session_state.page == 'lancamento':
             df = pd.read_csv(DB_FILE)
             df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success("✅ Registro salvo com sucesso!")
+            st.success("✅ Registro completo salvo com sucesso!")
             st.rerun()
 
     inject_mask()
