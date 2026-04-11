@@ -1,111 +1,165 @@
 import streamlit as st
+import sqlite3
+import pandas as pd
 from datetime import datetime
 import streamlit.components.v1 as components
 
-# 🔑 CONFIGURAÇÃO DA PÁGINA
-st.set_page_config(page_title="Zion - Tempos e Movimentos", layout="wide", initial_sidebar_state="expanded")
+# --- CONFIGURAÇÃO DA PÁGINA ---
+st.set_page_config(page_title="Zion Portuário", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS APROVADO (4CM / AZUL ROYAL) ---
+# --- BANCO DE DADOS (Persistência entre telas) ---
+def init_db():
+    conn = sqlite3.connect('zion_operacao.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS registros 
+        (id INTEGER PRIMARY KEY AUTOINCREMENT, placa TEXT, caminhao TEXT, data TEXT, 
+         s_patio TEXT, c_etc TEXT, tt_v TEXT, e_cl TEXT, s_cl TEXT, tt_cl TEXT,
+         e_b1 TEXT, s_b1 TEXT, tt_b1 TEXT, e_to TEXT, s_to TEXT, tt_to TEXT,
+         e_b2 TEXT, s_b2 TEXT, tt_b2 TEXT, s_etc TEXT, tt_ot TEXT, p_liq TEXT,
+         status TEXT)''')
+    conn.commit()
+    conn.close()
+
+init_db()
+
+# --- CSS: FUNDO PORTUÁRIO E ESTILO ZION ---
 st.markdown("""
     <style>
-    .header-container { display: flex; align-items: center; gap: 20px; margin-top: -40px; margin-bottom: 20px; }
-    .title-zion { color: #4169E1; font-family: 'Arial Black'; font-size: 26px; }
-    .img-icon { height: 50px; }
-    
-    div[data-testid="stTextInput"], div[data-testid="stDateInput"] { width: 150px !important; flex: none !important; }
-    [data-testid="column"] { flex: 0 0 auto !important; width: 150px !important; margin-right: 40px !important; }
-    .section-HR { border-bottom: 2px solid #4169E1; margin: 12px 0; color: #4169E1; font-size: 13px; font-weight: bold; width: 720px; }
-    label { font-size: 11px !important; font-weight: bold !important; }
-    input { height: 1.9rem !important; font-size: 13px !important; }
+    /* Fundo da tela de Login */
+    .stApp {
+        background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), 
+        url("https://images.unsplash.com/photo-1524522173746-f628baad3644?q=80&w=2070&auto=format&fit=crop");
+        background-size: cover;
+    }
+    /* Estilo dos Cards do Menu */
+    .menu-card {
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 20px;
+        border-radius: 15px;
+        border-left: 8px solid #4169E1;
+        text-align: center;
+        transition: 0.3s;
+        cursor: pointer;
+        margin-bottom: 10px;
+    }
+    .menu-card:hover { transform: scale(1.05); background-color: #f0f2f6; }
+    .title-zion { color: #4169E1; font-family: 'Arial Black'; font-size: 32px; text-align: center; background: white; padding: 10px; border-radius: 10px; }
+    div[data-testid="stTextInput"] { width: 150px !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- INJEÇÃO DA MÁSCARA DE HORA (CORREÇÃO DEFINITIVA) ---
-components.html("""
-    <script>
-    const mask = (e) => {
-        let v = e.target.value.replace(/\D/g,'');
-        if (v.length > 6) v = v.slice(0,6);
-        if (v.length > 4) v = v.replace(/(\d{2})(\d{2})(\d{2})/, "$1:$2:$3");
-        else if (v.length > 2) v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
-        e.target.value = v;
-        // Força o Streamlit a reconhecer a mudança
-        e.target.dispatchEvent(new Event('input', { bubbles: true }));
-    }
-    const apply = () => {
-        const inputs = window.parent.document.querySelectorAll('input[placeholder="00:00:00"]');
-        inputs.forEach(i => {
-            if(!i.dataset.m) { 
-                i.addEventListener('input', mask); 
-                i.dataset.m = '1'; 
-                i.onblur = () => { i.dispatchEvent(new Event('change', { bubbles: true })); };
-            }
-        });
-    }
-    setInterval(apply, 500);
-    </script>
-    """, height=0)
+# --- MÁSCARA DE HORA JS ---
+def inject_mask():
+    components.html("""
+        <script>
+        const mask = (e) => {
+            let v = e.target.value.replace(/\D/g,'');
+            if (v.length > 6) v = v.slice(0,6);
+            if (v.length > 4) v = v.replace(/(\d{2})(\d{2})(\d{2})/, "$1:$2:$3");
+            else if (v.length > 2) v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
+            e.target.value = v;
+            e.target.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+        setInterval(() => {
+            window.parent.document.querySelectorAll('input[placeholder="00:00:00"]').forEach(i => {
+                if(!i.dataset.m) { i.addEventListener('input', mask); i.dataset.m = '1'; }
+            });
+        }, 500);
+        </script>
+        """, height=0)
 
-# --- BARRA LATERAL (MENU) ---
-with st.sidebar:
-    st.markdown("<h2 style='color:#4169E1;'>ZION</h2>", unsafe_allow_html=True)
-    if st.button("📝 Novo Lançamento"): st.rerun()
-    if st.button("📊 Ver Tabela Geral"): st.info("Tabela em desenvolvimento"); st.stop()
-    st.markdown("---")
-    if st.button("⬅️ VOLTAR AO LOGIN"): st.stop()
+# --- LÓGICA DE NAVEGAÇÃO ---
+if 'page' not in st.session_state: st.session_state.page = 'login'
 
-# --- TOPO COM IMAGENS (CONFORME SOLICITADO) ---
-st.markdown(f"""
-    <div class="header-container">
-        <div class="title-zion">Zion - Tempos e movimentos</div>
-        <img src="https://cdn-icons-png.flaticon.com/512/1814/1814420.png" class="img-icon"> <img src="https://cdn-icons-png.flaticon.com/512/2722/2722420.png" class="img-icon"> </div>
-    """, unsafe_allow_html=True)
-
-# --- CAMPOS (DADOS NÃO SOMEM) ---
-def campo_hora(label, key):
-    if key not in st.session_state: st.session_state[key] = ""
-    return st.text_input(label, value=st.session_state[key], key=f"in_{key}", placeholder="00:00:00")
-
-# Identificação
-c1, c2, c3 = st.columns(3)
-placa = c1.text_input("Placa", key="placa")
-cam = c2.text_input("Caminhão", key="cam")
-data = c3.date_input("Data da Operação", datetime.now(), format="DD/MM/YYYY")
-
-st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
-c4, c5, c6, c7 = st.columns(4)
-s_patio = campo_hora("Saída Pátio", "sp")
-c_etc = campo_hora("Chegada ETC", "ce")
-tt_v = campo_hora("TT Viagem", "tv")
-e_cl = campo_hora("Ent. Classif.", "ec")
-
-c8, c9 = st.columns(2)
-s_cl = campo_hora("Saí. Classif.", "sc")
-tt_cl = campo_hora("TT Classif.", "tc")
-
-st.markdown("<div class='section-HR'>BALANÇAS E TOMBADOR</div>", unsafe_allow_html=True)
-c10, c11, c12, c13 = st.columns(4)
-e_b1 = campo_hora("Ent. Bal. 1", "b1e")
-s_b1 = campo_hora("Saí. Bal. 1", "b1s")
-tt_b1 = campo_hora("TT Balança", "b1t")
-e_to = campo_hora("Ent. Tomb.", "toe")
-
-c14, c15, c16, c17 = st.columns(4)
-s_to = campo_hora("Saí. Tomb.", "tos")
-tt_to = campo_hora("TT Tombador", "tot")
-e_b2 = campo_hora("Ent. Bal. 2", "b2e")
-s_b2 = campo_hora("Saí. Bal. 2", "b2s")
-
-st.markdown("<div class='section-HR'>FECHAMENTO</div>", unsafe_allow_html=True)
-c18, c19, c20, c21 = st.columns(4)
-tt_b2 = campo_hora("TT Bal. 2", "b2t")
-s_etc = campo_hora("Saída ETC Final", "setc")
-tt_ot = campo_hora("TT Total", "ttot")
-p_liq = st.text_input("Peso Líquido", key="pliq")
-
-st.markdown("<br>", unsafe_allow_html=True)
-if st.button("💾 SALVAR REGISTRO"):
-    st.success("✅ Registro gravado com sucesso!")
-    for k in ["sp", "ce", "tv", "ec", "sc", "tc", "b1e", "b1s", "b1t", "toe", "tos", "tot", "b2e", "b2s", "b2t", "setc", "ttot"]:
-        st.session_state[k] = ""
+def go_to(page):
+    st.session_state.page = page
     st.rerun()
+
+# --- 1. TELA DE LOGIN ---
+if st.session_state.page == 'login':
+    c1, c2, c3 = st.columns([1, 2, 1])
+    with c2:
+        st.markdown("<br><br><div class='title-zion'>ZION - SISTEMA PORTUÁRIO</div>", unsafe_allow_html=True)
+        with st.container():
+            st.write("")
+            user = st.text_input("Usuário")
+            senha = st.text_input("Senha", type="password")
+            if st.button("ACESSAR SISTEMA", use_container_width=True):
+                go_to('menu')
+
+# --- 2. TELA DE MENU (ÍCONES DE JANELA) ---
+elif st.session_state.page == 'menu':
+    st.markdown("<div class='title-zion'>PAINEL DE OPERAÇÕES</div>", unsafe_allow_html=True)
+    st.write("---")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.markdown("<div class='menu-card'><h3>🚚</h3><b>LOGÍSTICA</b><br>Classificação</div>", unsafe_allow_html=True)
+        if st.button("Abrir Logística", key="btn1"): go_to('logistica')
+        
+    with col2:
+        st.markdown("<div class='menu-card'><h3>⚖️</h3><b>BALANÇA</b><br>Pesagem Ent/Saí</div>", unsafe_allow_html=True)
+        if st.button("Abrir Balança", key="btn2"): go_to('balanca')
+        
+    with col3:
+        st.markdown("<div class='menu-card'><h3>🏗️</h3><b>TOMBADOR</b><br>Descarga</div>", unsafe_allow_html=True)
+        if st.button("Abrir Tombador", key="btn3"): go_to('tombador')
+        
+    with col4:
+        st.markdown("<div class='menu-card'><h3>📝</h3><b>FECHAMENTO</b><br>Finalizar Processo</div>", unsafe_allow_html=True)
+        if st.button("Abrir Fechamento", key="btn4"): go_to('fechamento')
+
+    if st.button("⬅️ Sair"): go_to('login')
+
+# --- 3. TELAS DE ESTAÇÃO (Exemplo: Logística) ---
+elif st.session_state.page == 'logistica':
+    st.markdown("<div class='title-zion'>ESTAÇÃO: LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
+    if st.button("⬅️ Voltar ao Menu"): go_to('menu')
+    
+    with st.form("form_log"):
+        c1, c2, c3 = st.columns(3)
+        placa = c1.text_input("PLACA")
+        cam = c2.text_input("CAMINHÃO")
+        data = c3.date_input("DATA DA OPERAÇÃO", format="DD/MM/YYYY")
+        
+        st.markdown("---")
+        c4, c5, c6 = st.columns(3)
+        sp = c4.text_input("Saída Pátio", placeholder="00:00:00")
+        ce = c5.text_input("Chegada ETC", placeholder="00:00:00")
+        ec = c6.text_input("Ent. Class", placeholder="00:00:00")
+        
+        if st.form_submit_button("✅ INICIAR PROCESSO"):
+            conn = sqlite3.connect('zion_operacao.db')
+            c = conn.cursor()
+            c.execute("INSERT INTO registros (placa, caminhao, data, s_patio, c_etc, e_cl, status) VALUES (?,?,?,?,?,?,'Em curso')", 
+                      (placa, cam, str(data), sp, ce, ec))
+            conn.commit()
+            conn.close()
+            st.success("Caminhão registrado! Próxima etapa: Balança.")
+    inject_mask()
+
+# --- 4. TELA BALANÇA (Busca o que a logística fez) ---
+elif st.session_state.page == 'balanca':
+    st.markdown("<div class='title-zion'>ESTAÇÃO: BALANÇA</div>", unsafe_allow_html=True)
+    if st.button("⬅️ Voltar"): go_to('menu')
+    
+    # Busca placas que estão no pátio
+    conn = sqlite3.connect('zion_operacao.db')
+    df = pd.read_sql("SELECT id, placa, caminhao FROM registros WHERE status = 'Em curso'", conn)
+    conn.close()
+    
+    if not df.empty:
+        escolha = st.selectbox("Selecione o veículo para pesagem:", df['placa'] + " - " + df['caminhao'])
+        id_sel = df.iloc[st.session_state.get('index', 0)]['id'] # Simplificado
+        
+        with st.form("form_bal"):
+            c1, c2, c3 = st.columns(3)
+            eb1 = c1.text_input("Ent. Bal 1", placeholder="00:00:00")
+            sb1 = c2.text_input("Saí. Bal 1", placeholder="00:00:00")
+            ttb1 = c3.text_input("TT Bal 1", placeholder="00:00:00")
+            if st.form_submit_button("💾 SALVAR PESAGEM"):
+                st.success("Pesagem salva!")
+    else:
+        st.warning("Nenhum caminhão aguardando balança.")
+    inject_mask()
