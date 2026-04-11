@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta
 
 # =========================================================
-# 🔑 GESTÃO DE USUÁRIOS E PERMISSÕES
+# 🔑 GESTÃO DE USUÁRIOS
 # =========================================================
 USUARIOS = {
     "admin": {"senha": "123", "perfil": "supervisor"},
@@ -78,44 +78,52 @@ if st.session_state.page == 'login':
                 st.session_state.perfil = USUARIOS[u]["perfil"]
                 st.session_state.page = 'lancamento'
                 st.rerun()
-            else: st.error("Erro de acesso.")
+            else: st.error("Usuário ou senha incorretos.")
 
 # --- TELA 2: LANÇAMENTOS ---
 elif st.session_state.page == 'lancamento':
+    # BARRA LATERAL COM BOTÃO DE RETORNO AO LOGIN
     st.sidebar.title(f"Perfil: {str(st.session_state.perfil).upper()}")
-    if st.sidebar.button("📊 Tabela"): st.session_state.page = 'visualizacao'; st.rerun()
-    if st.sidebar.button("🚪 Sair"): st.session_state.page = 'login'; st.rerun()
+    if st.sidebar.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
+    st.sidebar.markdown("---")
+    if st.sidebar.button("⬅️ VOLTAR AO LOGIN"): 
+        st.session_state.page = 'login'
+        st.session_state.perfil = None
+        st.rerun()
 
-    st.markdown("## 📝 Novo Registro")
+    st.markdown("## 📝 Novo Registro Portuário")
     
-    with st.form("form_aurora_final", clear_on_submit=True):
+    with st.form("form_aurora_principal", clear_on_submit=True):
         c1, c2, c3 = st.columns(3)
         placa = c1.text_input("Placa")
         caminhao = c2.text_input("Caminhão")
-        data_br = c3.date_input("Data", datetime.now()).strftime("%d/%m/%Y")
+        # DATA FORMATADA DD/MM/AAAA
+        data_selecionada = c3.date_input("Data da Operação", datetime.now())
+        data_br = data_selecionada.strftime("%d/%m/%Y")
 
-        st.markdown("<div class='section-HR'>LOGÍSTICA (PÁTIO -> ETC)</div>", unsafe_allow_html=True)
-        c4, c5 = st.columns(2); s_patio = c4.text_input("Saída Pátio"); c_etc = c5.text_input("Chegada ETC")
+        st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
+        c4, c5, c6, c7 = st.columns(4)
+        s_patio = c4.text_input("Saída Pátio")
+        c_etc = c5.text_input("Chegada ETC")
+        e_class = c6.text_input("Ent. Classif.")
+        s_class = c7.text_input("Saí. Classif.")
 
-        st.markdown("<div class='section-HR'>CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
-        c6, c7 = st.columns(2); e_class = c6.text_input("Entrada Classif."); s_class = c7.text_input("Saída Classif.")
-
-        st.markdown("<div class='section-HR'>BALANÇA 1</div>", unsafe_allow_html=True)
-        c8, c9 = st.columns(2); e_bal1 = c8.text_input("Entrada Bal. 1"); s_bal1 = c9.text_input("Saída Bal. 1")
-
-        st.markdown("<div class='section-HR'>TOMBADOR</div>", unsafe_allow_html=True)
-        c10, c11 = st.columns(2); e_tom = c10.text_input("Entrada Tombador"); s_tom = c11.text_input("Saída Tombador")
-
-        st.markdown("<div class='section-HR'>BALANÇA 2</div>", unsafe_allow_html=True)
-        c12, c13 = st.columns(2); e_bal2 = c12.text_input("Entrada Bal. 2"); s_bal2 = c13.text_input("Saída Bal. 2")
+        st.markdown("<div class='section-HR'>BALANÇAS E TOMBADOR</div>", unsafe_allow_html=True)
+        c8, c9, c10, c11, c12, c13 = st.columns(6)
+        e_bal1 = c8.text_input("Ent. Bal. 1")
+        s_bal1 = c9.text_input("Saí. Bal. 1")
+        e_tom = c10.text_input("Ent. Tomb.")
+        s_tom = c11.text_input("Saí. Tomb.")
+        e_bal2 = c12.text_input("Ent. Bal. 2")
+        s_bal2 = c13.text_input("Saí. Bal. 2")
 
         st.markdown("<div class='section-HR'>FECHAMENTO</div>", unsafe_allow_html=True)
-        c14, c15 = st.columns(2); s_etc = c14.text_input("Saída ETC Final"); p_liq = c15.text_input("Peso Líquido")
+        c14, c15 = st.columns(2)
+        s_etc = c14.text_input("Saída ETC Final")
+        p_liq = c15.text_input("Peso Líquido")
 
-        # O BOTÃO DEVE ESTAR AQUI DENTRO DO "WITH ST.FORM"
-        salvar = st.form_submit_button("SALVAR REGISTRO")
-
-        if salvar:
+        # BOTÃO DENTRO DO FORMULÁRIO (CORREÇÃO DO ERRO ANTERIOR)
+        if st.form_submit_button("SALVAR E CALCULAR TT"):
             tt_v = calc_diff(s_patio, c_etc)
             tt_c = calc_diff(e_class, s_class)
             tt_b1 = calc_diff(e_bal1, s_bal1)
@@ -135,14 +143,25 @@ elif st.session_state.page == 'lancamento':
             df = pd.read_csv(DB_FILE)
             df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success(f"✅ Salvo! TT Operação: {td_to_str(tt_total)}")
+            st.success(f"✅ Salvo com sucesso! TT Operação: {td_to_str(tt_total)}")
 
-# --- TELA 3: VISUALIZAÇÃO ---
+# --- TELA 3: VISUALIZAÇÃO E EXPORTAÇÃO ---
 elif st.session_state.page == 'visualizacao':
-    st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update(page='lancamento'))
-    st.markdown("## 📊 Tabela")
-    df = pd.read_csv(DB_FILE)
-    st.dataframe(df, use_container_width=True)
-    if st.session_state.perfil == "supervisor":
+    st.sidebar.button("⬅️ Voltar ao Lançamento", on_click=lambda: st.session_state.update(page='lancamento'))
+    st.markdown("## 📊 Histórico de Operações")
+    
+    if os.path.exists(DB_FILE):
+        df = pd.read_csv(DB_FILE)
+        st.dataframe(df, use_container_width=True)
+
+        st.markdown("### 📥 Exportar Dados")
+        col_ex1, col_ex2 = st.columns(2)
+        
+        # Exportação Excel (CSV formatado para Excel)
         csv = df.to_csv(index=False, sep=';', encoding='latin1').encode('latin1')
-        st.download_button("📥 Baixar Excel", csv, "relatorio.csv", "text/csv")
+        col_ex1.download_button("📥 Baixar para EXCEL", csv, "relatorio_aurora.csv", "text/csv")
+        
+        # Dica para PDF
+        col_ex2.info("💡 Para salvar em PDF: Clique no botão de Excel, abra o arquivo e use 'Salvar como PDF'.")
+    else:
+        st.warning("Nenhum dado encontrado.")
