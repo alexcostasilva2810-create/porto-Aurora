@@ -1,114 +1,173 @@
 import streamlit as st
-from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
 import streamlit.components.v1 as components
+from datetime import datetime
 
-# 🔑 CONFIGURAÇÃO TOTAL
+# --- CONEXÃO COM GOOGLE SHEETS (VIA SECRETS) ---
+def conectar_planilha():
+    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    # Lê a chave configurada no painel 'Secrets' do Streamlit
+    creds_info = st.secrets["gcp_service_account"]
+    creds = Credentials.from_service_account_info(creds_info, scopes=scope)
+    client = gspread.authorize(creds)
+    # Abre a planilha 'Zion' na aba 'Tempo'
+    return client.open("Zion").worksheet("Tempo")
+
+# --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Zion Portuário", layout="wide", initial_sidebar_state="collapsed")
 
-# --- CSS: IMAGEM DE FUNDO (A CERTA) E ESTILO DOS CAMPOS ---
-st.markdown("""
+# --- ESTILIZAÇÃO CSS CUSTOMIZADA ---
+st.markdown(f"""
     <style>
-    .stApp {
-        background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), 
-        url("https://raw.githubusercontent.com/sua-url-da-imagem/image_04fe05.jpg"); /* Use o link direto da sua imagem aqui */
+    .stApp {{
+        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), 
+        url("https://raw.githubusercontent.com/Claudio-Zion/zion-port/main/image_fb1881.jpg");
         background-size: cover;
         background-attachment: fixed;
-    }
-    .title-zion { color: #4169E1; font-family: 'Arial Black'; font-size: 30px; text-align: center; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 12px; margin-bottom: 25px; border-bottom: 5px solid #4169E1; }
-    .menu-card { background: rgba(255,255,255,0.95); padding: 25px; border-radius: 15px; border-left: 10px solid #4169E1; text-align: center; font-size: 20px; transition: 0.3s; }
-    div[data-testid="stTextInput"] { width: 150px !important; }
-    input { height: 2.2rem !important; font-weight: bold !important; font-size: 15px !important; }
-    .section-HR { border-bottom: 3px solid #4169E1; margin: 20px 0; color: #4169E1; font-weight: bold; font-size: 16px; width: 750px; }
+    }}
+    .header-zion {{
+        background-color: white;
+        padding: 20px;
+        border-radius: 15px;
+        border-bottom: 6px solid #4169E1;
+        text-align: center;
+        margin-bottom: 30px;
+    }}
+    .header-zion h1 {{ color: #4169E1; font-family: 'Arial Black'; margin: 0; }}
+    .card-operacional {{
+        background: rgba(255, 255, 255, 0.95);
+        padding: 25px;
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        color: black;
+    }}
+    input {{ font-weight: bold !important; font-size: 18px !important; color: #1E1E1E !important; }}
+    label {{ font-weight: bold !important; color: #333 !important; }}
     </style>
     """, unsafe_allow_html=True)
 
-# --- MÁSCARA DE HORA BLINDADA (NÃO SOME MAIS) ---
+# --- MÁSCARA JAVASCRIPT (IMPEDE A HORA DE SUMIR) ---
 components.html("""
     <script>
-    function formatTime(v) {
-        v = v.replace(/\D/g,'');
+    const maskTime = (e) => {
+        let v = e.target.value.replace(/\D/g,'');
         if (v.length > 6) v = v.slice(0,6);
-        if (v.length > 4) return v.replace(/(\d{2})(\d{2})(\d{2})/, "$1:$2:$3");
-        if (v.length > 2) return v.replace(/(\d{2})(\d{2})/, "$1:$2");
-        return v;
+        if (v.length > 4) v = v.replace(/(\d{2})(\d{2})(\d{2})/, "$1:$2:$3");
+        else if (v.length > 2) v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
+        e.target.value = v;
     }
-    
-    const applyMask = () => {
-        const inputs = window.parent.document.querySelectorAll('input[placeholder="00:00:00"]');
-        inputs.forEach(input => {
-            if (!input.dataset.locked) {
-                input.dataset.locked = "true";
-                input.addEventListener('keydown', (e) => {
-                    // Previne o refresh do Streamlit enquanto digita
-                    e.stopPropagation();
-                });
-                input.addEventListener('input', (e) => {
-                    e.target.value = formatTime(e.target.value);
-                });
-                input.addEventListener('change', (e) => {
-                    // Só envia pro Streamlit quando sai do campo ou dá Enter
-                    window.parent.postMessage({type: 'streamlit:setComponentValue', value: e.target.value}, '*');
-                });
+    setInterval(() => {
+        window.parent.document.querySelectorAll('input[placeholder="00:00:00"]').forEach(input => {
+            if(!input.dataset.maskSet) { 
+                input.addEventListener('input', maskTime); 
+                input.dataset.maskSet = '1';
+                // Garante que o Streamlit só processe após o foco sair do campo
+                input.onblur = () => { input.dispatchEvent(new Event('change', { bubbles: true })); };
             }
         });
-    }
-    setInterval(applyMask, 500);
+    }, 500);
     </script>
     """, height=0)
 
-# --- SISTEMA DE NAVEGAÇÃO ---
-if 'page' not in st.session_state: st.session_state.page = 'login'
-if 'form_data' not in st.session_state: st.session_state.form_data = {}
+# --- SISTEMA DE LOGIN E PERFIS ---
+if 'perfil' not in st.session_state:
+    st.session_state.perfil = None
 
-def change_page(target):
-    st.session_state.page = target
-    st.rerun()
-
-# --- TELA 1: LOGIN (FUNDO PORTUÁRIO) ---
-if st.session_state.page == 'login':
-    c1, c2, c3 = st.columns([1, 1.5, 1])
+if not st.session_state.perfil:
+    st.markdown("<div class='header-zion'><h1>ZION PORTUÁRIO - LOGIN</h1></div>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns([1, 1.2, 1])
     with c2:
-        st.markdown("<br><br><div class='title-zion'>ZION PORTUÁRIO - LOGIN</div>", unsafe_allow_html=True)
         with st.container():
-            st.text_input("USUÁRIO", key="user")
-            st.text_input("SENHA", type="password", key="pass")
-            if st.button("ACESSAR OPERAÇÃO", use_container_width=True):
-                change_page('menu')
+            st.markdown("<div class='card-operacional'>", unsafe_allow_html=True)
+            user = st.selectbox("IDENTIFIQUE SEU PERFIL", ["SELECIONE", "OPERADOR LOGÍSTICA", "OPERADOR BALANÇA", "OPERADOR TOMBADOR", "SUPERVISOR / ADM"])
+            if st.button("ACESSAR SISTEMA", use_container_width=True):
+                if user != "SELECIONE":
+                    st.session_state.perfil = user
+                    st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+else:
+    # --- CABEÇALHO DO PAINEL ---
+    st.markdown(f"<div class='header-zion'><h1>PAINEL OPERACIONAL: {st.session_state.perfil}</h1></div>", unsafe_allow_html=True)
+    
+    if st.sidebar.button("🚪 LOGOUT / SAIR"):
+        st.session_state.perfil = None
+        st.rerun()
 
-# --- TELA 2: MENU DE ESTAÇÕES ---
-elif st.session_state.page == 'menu':
-    st.markdown("<div class='title-zion'>PAINEL DE JANELAS OPERACIONAIS</div>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    
-    with c1:
-        st.markdown("<div class='menu-card'>🚛<br>LOGÍSTICA</div>", unsafe_allow_html=True)
-        if st.button("Abrir Janela 1", key="m1"): change_page('logistica')
-    with c2:
-        st.markdown("<div class='menu-card'>⚖️<br>BALANÇA</div>", unsafe_allow_html=True)
-        if st.button("Abrir Janela 2", key="m2"): change_page('balanca')
-    with c3:
-        st.markdown("<div class='menu-card'>🏗️<br>TOMBADOR</div>", unsafe_allow_html=True)
-        if st.button("Abrir Janela 3", key="m3"): change_page('tombador')
-    with c4:
-        st.markdown("<div class='menu-card'>🏁<br>FECHAMENTO</div>", unsafe_allow_html=True)
-        if st.button("Abrir Janela 4", key="m4"): change_page('fechamento')
+    perfil = st.session_state.perfil
 
-# --- TELA 3: ESTAÇÃO LOGÍSTICA ---
-elif st.session_state.page == 'logistica':
-    st.markdown("<div class='title-zion'>JANELA: LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
-    if st.button("⬅️ VOLTAR AO MENU"): change_page('menu')
-    
-    colA, colB, colC = st.columns(3)
-    placa = colA.text_input("PLACA", key="p_placa")
-    caminhao = colB.text_input("CAMINHÃO", key="p_cam")
-    data = colC.date_input("DATA", format="DD/MM/YYYY")
-    
-    st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns(4)
-    spat = c1.text_input("Saída Pátio", placeholder="00:00:00", key="h_spat")
-    cetc = c2.text_input("Chegada ETC", placeholder="00:00:00", key="h_cetc")
-    ttvi = c3.text_input("TT Viagem", placeholder="00:00:00", key="h_ttvi")
-    ecla = c4.text_input("Ent. Class", placeholder="00:00:00", key="h_ecla")
-    
-    if st.button("💾 SALVAR REGISTRO DE LOGÍSTICA"):
-        st.success("Dados enviados para a Balança!")
+    # --- LÓGICA DE VISIBILIDADE DE CAMPOS ---
+    with st.container():
+        st.markdown("<div class='card-operacional'>", unsafe_allow_html=True)
+        
+        with st.form("form_operacao", clear_on_submit=True):
+            # CAMPOS COMUNS (Aparecem para todos)
+            c1, c2, c3 = st.columns(3)
+            placa = c1.text_input("PLACA")
+            caminhao = c2.text_input("CAMINHÃO")
+            data_hoje = c3.text_input("DATA", value=datetime.now().strftime("%d/%m/%Y"))
+
+            st.markdown("---")
+
+            # SEÇÃO LOGÍSTICA
+            if perfil in ["OPERADOR LOGÍSTICA", "SUPERVISOR / ADM"]:
+                st.subheader("🚚 LOGÍSTICA E CLASSIFICAÇÃO")
+                l1, l2, l3 = st.columns(3)
+                s_patio = l1.text_input("SAÍDA DO PÁTIO", placeholder="00:00:00")
+                c_etc = l2.text_input("CHEGADA ETC", placeholder="00:00:00")
+                e_class = l3.text_input("ENTR. CLASSIFIC", placeholder="00:00:00")
+            
+            # SEÇÃO BALANÇA
+            if perfil in ["OPERADOR BALANÇA", "SUPERVISOR / ADM"]:
+                st.subheader("⚖️ PESAGEM (BALANÇA)")
+                b1, b2 = st.columns(2)
+                e_bal = b1.text_input("ENTR. BALANÇA", placeholder="00:00:00")
+                s_bal = b2.text_input("SAÍDA BALANÇA", placeholder="00:00:00")
+
+            # SEÇÃO TOMBADOR
+            if perfil in ["OPERADOR TOMBADOR", "SUPERVISOR / ADM"]:
+                st.subheader("🏗️ TOMBADOR")
+                t1, t2 = st.columns(2)
+                e_tom = t1.text_input("ENTRADA TOMBADOR", placeholder="00:00:00")
+                s_tom = t2.text_input("SAÍDA TOMBADOR", placeholder="00:00:00")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            # BOTÃO DE SALVAR
+            btn_save = st.form_submit_button("✅ SALVAR E ENVIAR PARA PLANILHA", use_container_width=True)
+            
+            if btn_save:
+                try:
+                    sheet = conectar_planilha()
+                    # Mapeamento exato das colunas conforme sua planilha
+                    # Ordem: Placa, Caminhão, Data, Saída Pátio, Chegada ETC, TT Viagem (vazio), Entr Classific...
+                    # Nota: As colunas TT (vermelhas) a planilha calcula sozinha, enviamos "" para elas.
+                    dados = [
+                        placa, caminhao, data_hoje, 
+                        s_patio if 's_patio' in locals() else "", 
+                        c_etc if 'c_etc' in locals() else "", 
+                        "", # TT Viagem
+                        e_class if 'e_class' in locals() else "",
+                        "", # Saída Classific
+                        "", # TT Classific
+                        e_bal if 'e_bal' in locals() else "",
+                        s_bal if 's_bal' in locals() else "",
+                        "", # TT Balança
+                        e_tom if 'e_tom' in locals() else "",
+                        s_tom if 's_tom' in locals() else ""
+                    ]
+                    sheet.append_row(dados)
+                    st.success(f"Dados da placa {placa} registrados com sucesso!")
+                except Exception as e:
+                    st.error(f"Erro ao conectar: {e}")
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # --- TABELA GERAL (ÍCONE DE TABELA PARA SUPERVISOR) ---
+    if perfil == "SUPERVISOR / ADM":
+        st.write("---")
+        st.subheader("📊 VISUALIZAÇÃO DA TABELA GERAL (GOOGLE SHEETS)")
+        if st.button("CARREGAR DADOS EM TEMPO REAL"):
+            sheet = conectar_planilha()
+            df = pd.DataFrame(sheet.get_all_records())
+            st.dataframe(df, use_container_width=True)
