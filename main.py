@@ -8,23 +8,25 @@ from datetime import datetime, timedelta
 # =========================================================
 USUARIOS = {
     "admin": {"senha": "123", "perfil": "supervisor"},
-    "alex": {"senha": "porto", "perfil": "supervisor"}
+    "alex": {"senha": "porto", "perfil": "supervisor"},
+    "operador1": {"senha": "123", "perfil": "operador"}
 }
 
 # Configuração da página
 st.set_page_config(page_title="Aurora Port - Monitoramento", layout="wide")
 
-# Estilo visual
+# Estilo visual para separadores e botões
 st.markdown("""
     <style>
     .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #004b87; color: white; font-weight: bold; }
     .title-text { text-align: center; color: #004b87; font-family: 'Arial Black'; font-size: 40px; margin-bottom: 0; }
-    .section-HR { border-top: 2px solid #004b87; margin: 20px 0; }
+    .section-HR { border-top: 2px solid #004b87; margin: 20px 0; padding-top: 10px; font-weight: bold; color: #004b87; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- FUNÇÕES DE APOIO ---
 def formatar_hora(texto):
+    """Formata entrada numérica para HH:MM:SS"""
     apenas_numeros = "".join(filter(str.isdigit, texto))
     if len(apenas_numeros) == 4:
         return f"{apenas_numeros[:2]}:{apenas_numeros[2:]}:00"
@@ -33,17 +35,18 @@ def formatar_hora(texto):
     return "00:00:00" if not apenas_numeros else texto
 
 def calc_diff(inicio, fim):
+    """Calcula a diferença entre dois horários"""
     try:
         fmt = '%H:%M:%S'
         t1 = datetime.strptime(formatar_hora(inicio), fmt)
         t2 = datetime.strptime(formatar_hora(fim), fmt)
-        diff = t2 - t1
-        return diff
+        if t2 < t1: t2 += timedelta(days=1) # Caso passe da meia-noite
+        return t2 - t1
     except:
         return timedelta(0)
 
 def td_to_str(td):
-    # Transforma timedelta em string HH:MM:SS
+    """Converte timedelta para string formatada"""
     total_sec = int(td.total_seconds())
     h = total_sec // 3600
     m = (total_sec % 3600) // 60
@@ -57,22 +60,21 @@ COLUNAS = [
     "SAÍDA PÁTIO", "CHEGADA ETC", "TT VIAGEM",
     "ENTR. CLASSIF", "SAÍDA CLASSIF", "TT CLASSIF",
     "ENTR. BALANÇA 1", "SAÍDA BALANÇA 1", "TT BALANÇA 1",
-    "ENTR. TOMBADOR", "SAÍDA TOMBADOR", "TT TOMBADOR",
-    "ENTR. BALANÇA 2", "SAÍDA BALANÇA 2", "TT BALANÇA 2",
+    "ENT. TOMBADOR", "SAÍDA TOMBADOR", "TT TOMBADOR",
+    "ENT. BALANÇA 2", "SAÍDA BALANÇA 2", "TT BALANÇA 2",
     "SAÍDA ETC", "TT OPERAÇÃO", "PESO LÍQUIDO"
 ]
 
 if not os.path.exists(DB_FILE):
     pd.DataFrame(columns=COLUNAS).to_csv(DB_FILE, index=False)
 
-# --- NAVEGAÇÃO ---
 if 'page' not in st.session_state: st.session_state.page = 'login'
 if 'perfil' not in st.session_state: st.session_state.perfil = None
 
 # --- TELA 1: LOGIN ---
 if st.session_state.page == 'login':
     st.markdown("<h1 class='title-text'>AURORA</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Logística de Grãos - Tempos e Movimentos</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center;'>Logística de Grãos - PT-BR</p>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1,1.2,1])
     with col2:
         u = st.text_input("Usuário")
@@ -80,7 +82,7 @@ if st.session_state.page == 'login':
         if st.button("ACESSAR"):
             if u in USUARIOS and USUARIOS[u]["senha"] == p:
                 st.session_state.perfil = USUARIOS[u]["perfil"]; st.session_state.page = 'lancamento'; st.rerun()
-            else: st.error("Incorreto.")
+            else: st.error("Usuário ou senha inválidos.")
 
 # --- TELA 2: LANÇAMENTOS ---
 elif st.session_state.page == 'lancamento':
@@ -88,84 +90,33 @@ elif st.session_state.page == 'lancamento':
     if st.sidebar.button("📊 Visualizar Tabela"): st.session_state.page = 'visualizacao'; st.rerun()
     if st.sidebar.button("🚪 Sair"): st.session_state.page = 'login'; st.rerun()
 
-    st.markdown("## 📝 Novo Acompanhamento")
+    st.markdown("## 📝 Novo Registro de Operação")
     
     with st.form("form_aurora", clear_on_submit=True):
         # CABEÇALHO
         c1, c2, c3 = st.columns(3)
         placa = c1.text_input("Placa")
-        caminhao = c2.text_input("Caminhão / Modelo")
-        data = c3.date_input("Data", datetime.now())
+        caminhao = c2.text_input("Caminhão")
+        # DATA FORMATADA PT-BR
+        data_input = c3.date_input("Data", datetime.now())
+        data_br = data_input.strftime("%d/%m/%Y")
 
         # BLOCO 1: VIAGEM
-        st.markdown("<div class='section-HR'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-HR'>LOGÍSTICA: PÁTIO -> ETC</div>", unsafe_allow_html=True)
         c4, c5 = st.columns(2)
-        s_patio = c4.text_input("Saída do Pátio (Ex: 0800)")
-        c_etc = c5.text_input("Chegada ETC")
+        s_patio = c4.text_input("Saída do Pátio (HHMM)")
+        c_etc = c5.text_input("Chegada ETC (HHMM)")
 
         # BLOCO 2: CLASSIFICAÇÃO
-        st.markdown("<div class='section-HR'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-HR'>CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
         c6, c7 = st.columns(2)
-        e_class = c6.text_input("ENTR. CLASSIFICAÇÃO")
-        s_class = c7.text_input("SAÍDA CLASSIFICAÇÃO")
+        e_class = c6.text_input("Entrada Classificação")
+        s_class = c7.text_input("Saída Classificação")
 
         # BLOCO 3: BALANÇA 1
-        st.markdown("<div class='section-HR'></div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-HR'>BALANÇA 1 (ENTRADA)</div>", unsafe_allow_html=True)
         c8, c9 = st.columns(2)
-        e_bal1 = c8.text_input("ENTR. BALANÇA 1")
-        s_bal1 = c9.text_input("SAÍDA BALANÇA 1")
+        e_bal1 = c8.text_input("Entrada Balança 1")
+        s_bal1 = c9.text_input("Saída Balança 1")
 
-        # BLOCO 4: TOMBADOR
-        st.markdown("<div class='section-HR'></div>", unsafe_allow_html=True)
-        c10, c11 = st.columns(2)
-        e_tom = c10.text_input("ENTR. TOMBADOR")
-        s_tom = c11.text_input("SAÍDA TOMBADOR")
-
-        # BLOCO 5: BALANÇA 2
-        st.markdown("<div class='section-HR'></div>", unsafe_allow_html=True)
-        c12, c13 = st.columns(2)
-        e_bal2 = c12.text_input("ENTRADA BALANÇA 2")
-        s_bal2 = c13.text_input("SAÍDA BALANÇA 2")
-
-        # FINALIZAÇÃO
-        st.markdown("<div class='section-HR'></div>", unsafe_allow_html=True)
-        c14, c15 = st.columns(2)
-        s_etc = c14.text_input("SAÍDA ETC")
-        p_liquido = c15.text_input("PESO LÍQUIDO (KG)")
-
-        if st.form_submit_button("SALVAR E CALCULAR"):
-            # Cálculos de TT individuais
-            tt_v = calc_diff(s_patio, c_etc)
-            tt_c = calc_diff(e_class, s_class)
-            tt_b1 = calc_diff(e_bal1, s_bal1)
-            tt_t = calc_diff(e_tom, s_tom)
-            tt_b2 = calc_diff(e_bal2, s_bal2)
-            
-            # TT OPERAÇÃO (Soma de todos os deltas)
-            tt_operacao = tt_v + tt_c + tt_b1 + tt_t + tt_b2
-
-            novo_dado = {
-                "PLACA": placa, "CAMINHÃO": caminhao, "DATA": data.strftime("%d/%m/%Y"),
-                "SAÍDA PÁTIO": formatar_hora(s_patio), "CHEGADA ETC": formatar_hora(c_etc), "TT VIAGEM": td_to_str(tt_v),
-                "ENTR. CLASSIF": formatar_hora(e_class), "SAÍDA CLASSIF": formatar_hora(s_class), "TT CLASSIF": td_to_str(tt_c),
-                "ENTR. BALANÇA 1": formatar_hora(e_bal1), "SAÍDA BALANÇA 1": formatar_hora(s_bal1), "TT BALANÇA 1": td_to_str(tt_b1),
-                "ENTR. TOMBADOR": formatar_hora(e_tom), "SAÍDA TOMBADOR": formatar_hora(s_tom), "TT TOMBADOR": td_to_str(tt_t),
-                "ENTR. BALANÇA 2": formatar_hora(e_bal2), "SAÍDA BALANÇA 2": formatar_hora(s_bal2), "TT BALANÇA 2": td_to_str(tt_b2),
-                "SAÍDA ETC": formatar_hora(s_etc), "TT OPERAÇÃO": td_to_str(tt_operacao), "PESO LÍQUIDO": p_liquido
-            }
-            
-            df = pd.read_csv(DB_FILE)
-            df = pd.concat([df, pd.DataFrame([novo_dado])], ignore_index=True)
-            df.to_csv(DB_FILE, index=False)
-            st.success(f"✅ Lançado! TT Operação: {td_to_str(tt_operacao)}")
-
-# --- TELA 3: VISUALIZAÇÃO ---
-elif st.session_state.page == 'visualizacao':
-    st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update(page='lancamento'))
-    st.markdown("## 📊 Histórico de Operações")
-    df = pd.read_csv(DB_FILE)
-    st.dataframe(df, use_container_width=True)
-    
-    if st.session_state.perfil == "supervisor":
-        csv = df.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Exportar Relatório Excel", csv, "relatorio_porto.csv", "text/csv")
+        # BLOCO 4
