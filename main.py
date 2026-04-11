@@ -12,7 +12,7 @@ USUARIOS = {
 }
 
 # Configuração da página
-st.set_page_config(page_title="Aurora Port - Monitoramento", layout="wide")
+st.set_page_config(page_title="Aurora Port", layout="wide")
 
 # Estilo visual
 st.markdown("""
@@ -78,27 +78,26 @@ if st.session_state.page == 'login':
                 st.session_state.perfil = USUARIOS[u]["perfil"]
                 st.session_state.page = 'lancamento'
                 st.rerun()
-            else: st.error("Usuário ou senha incorretos.")
+            else: st.error("Acesso negado.")
 
 # --- TELA 2: LANÇAMENTOS ---
 elif st.session_state.page == 'lancamento':
-    # BARRA LATERAL COM BOTÃO DE RETORNO AO LOGIN
     st.sidebar.title(f"Perfil: {str(st.session_state.perfil).upper()}")
     if st.sidebar.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
     st.sidebar.markdown("---")
     if st.sidebar.button("⬅️ VOLTAR AO LOGIN"): 
         st.session_state.page = 'login'
-        st.session_state.perfil = None
         st.rerun()
 
-    st.markdown("## 📝 Novo Registro Portuário")
+    st.markdown("## 📝 Novo Registro")
     
-    with st.form("form_aurora_principal", clear_on_submit=True):
+    with st.form("form_aurora", clear_on_submit=True):
         c1, c2, c3 = st.columns(3)
         placa = c1.text_input("Placa")
         caminhao = c2.text_input("Caminhão")
-        # DATA FORMATADA DD/MM/AAAA
-        data_selecionada = c3.date_input("Data da Operação", datetime.now())
+        
+        # AJUSTE DA DATA (FORMATO BRASILEIRO NA TELA)
+        data_selecionada = c3.date_input("Data da Operação", datetime.now(), format="DD/MM/YYYY")
         data_br = data_selecionada.strftime("%d/%m/%Y")
 
         st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
@@ -122,8 +121,7 @@ elif st.session_state.page == 'lancamento':
         s_etc = c14.text_input("Saída ETC Final")
         p_liq = c15.text_input("Peso Líquido")
 
-        # BOTÃO DENTRO DO FORMULÁRIO (CORREÇÃO DO ERRO ANTERIOR)
-        if st.form_submit_button("SALVAR E CALCULAR TT"):
+        if st.form_submit_button("SALVAR REGISTRO"):
             tt_v = calc_diff(s_patio, c_etc)
             tt_c = calc_diff(e_class, s_class)
             tt_b1 = calc_diff(e_bal1, s_bal1)
@@ -143,25 +141,14 @@ elif st.session_state.page == 'lancamento':
             df = pd.read_csv(DB_FILE)
             df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success(f"✅ Salvo com sucesso! TT Operação: {td_to_str(tt_total)}")
+            st.success(f"✅ Salvo! Data: {data_br}")
 
-# --- TELA 3: VISUALIZAÇÃO E EXPORTAÇÃO ---
+# --- TELA 3: VISUALIZAÇÃO ---
 elif st.session_state.page == 'visualizacao':
-    st.sidebar.button("⬅️ Voltar ao Lançamento", on_click=lambda: st.session_state.update(page='lancamento'))
-    st.markdown("## 📊 Histórico de Operações")
+    st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update(page='lancamento'))
+    st.markdown("## 📊 Histórico")
+    df = pd.read_csv(DB_FILE)
+    st.dataframe(df, use_container_width=True)
     
-    if os.path.exists(DB_FILE):
-        df = pd.read_csv(DB_FILE)
-        st.dataframe(df, use_container_width=True)
-
-        st.markdown("### 📥 Exportar Dados")
-        col_ex1, col_ex2 = st.columns(2)
-        
-        # Exportação Excel (CSV formatado para Excel)
-        csv = df.to_csv(index=False, sep=';', encoding='latin1').encode('latin1')
-        col_ex1.download_button("📥 Baixar para EXCEL", csv, "relatorio_aurora.csv", "text/csv")
-        
-        # Dica para PDF
-        col_ex2.info("💡 Para salvar em PDF: Clique no botão de Excel, abra o arquivo e use 'Salvar como PDF'.")
-    else:
-        st.warning("Nenhum dado encontrado.")
+    csv = df.to_csv(index=False, sep=';', encoding='latin1').encode('latin1')
+    st.download_button("📥 Exportar Excel", csv, "relatorio.csv", "text/csv")
