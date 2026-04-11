@@ -7,8 +7,9 @@ from datetime import datetime, timedelta
 # 🔑 GESTÃO DE USUÁRIOS
 # =========================================================
 USUARIOS = {
-    "admin": {"senha": "123", "perfil": "supervisor"},
-    "alex": {"senha": "porto", "perfil": "supervisor"}
+    "admin": {"senha": "123", "perfil": "ADMIN"},
+    "alex": {"senha": "porto", "perfil": "SUPERVISOR"},
+    "operador1": {"senha": "123", "perfil": "OPERADOR"}
 }
 
 # Configuração da página
@@ -25,12 +26,11 @@ st.markdown("""
 
 # --- FUNÇÕES DE APOIO ---
 def formatar_hora(texto):
-    apenas_numeros = "".join(filter(str.isdigit, texto))
-    if len(apenas_numeros) == 4:
-        return f"{apenas_numeros[:2]}:{apenas_numeros[2:]}:00"
-    elif len(apenas_numeros) == 6:
-        return f"{apenas_numeros[:2]}:{apenas_numeros[2:4]}:{apenas_numeros[4:]}"
-    return "00:00:00" if not apenas_numeros else texto
+    """Garante que qualquer entrada vire HH:MM:SS"""
+    n = "".join(filter(str.isdigit, texto))
+    if len(n) == 4: return f"{n[:2]}:{n[2:]}:00"
+    elif len(n) == 6: return f"{n[:2]}:{n[2:4]}:{n[4:]}"
+    return "00:00:00" if not n else texto
 
 def calc_diff(inicio, fim):
     try:
@@ -43,28 +43,23 @@ def calc_diff(inicio, fim):
         return timedelta(0)
 
 def td_to_str(td):
-    total_sec = int(td.total_seconds())
-    h, rem = divmod(total_sec, 3600)
+    ts = int(td.total_seconds())
+    h, rem = divmod(ts, 3600)
     m, s = divmod(rem, 60)
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 # --- BANCO DE DADOS ---
 DB_FILE = "dados_porto_v2.csv"
-COLUNAS = [
-    "PLACA", "CAMINHÃO", "DATA", 
-    "SAÍDA PÁTIO", "CHEGADA ETC", "TT VIAGEM",
-    "ENTR. CLASSIF", "SAÍDA CLASSIF", "TT CLASSIF",
-    "ENTR. BALANÇA 1", "SAÍDA BALANÇA 1", "TT BALANÇA 1",
-    "ENT. TOMBADOR", "SAÍDA TOMBADOR", "TT TOMBADOR",
-    "ENT. BALANÇA 2", "SAÍDA BALANÇA 2", "TT BALANÇA 2",
-    "SAÍDA ETC", "TT OPERAÇÃO", "PESO LÍQUIDO"
-]
-
 if not os.path.exists(DB_FILE):
-    pd.DataFrame(columns=COLUNAS).to_csv(DB_FILE, index=False)
+    pd.DataFrame(columns=[
+        "PLACA", "CAMINHÃO", "DATA", "SAÍDA PÁTIO", "CHEGADA ETC", "TT VIAGEM",
+        "ENT. CLASSIF", "SAÍ. CLASSIF", "TT CLASSIF", "ENT. BAL 1", "SAÍ. BAL 1", 
+        "TT BAL 1", "ENT. TOMB", "SAÍ. TOMB", "TT TOMB", "ENT. BAL 2", "SAÍ. BAL 2", 
+        "TT BAL 2", "SAÍDA ETC", "TT OPERAÇÃO", "PESO LÍQUIDO"
+    ]).to_csv(DB_FILE, index=False)
 
 if 'page' not in st.session_state: st.session_state.page = 'login'
-if 'perfil' not in st.session_state: st.session_state.perfil = None
+if 'perfil' not in st.session_state: st.session_state.perfil = ""
 
 # --- TELA 1: LOGIN ---
 if st.session_state.page == 'login':
@@ -82,7 +77,8 @@ if st.session_state.page == 'login':
 
 # --- TELA 2: LANÇAMENTOS ---
 elif st.session_state.page == 'lancamento':
-    st.sidebar.title(f"Perfil: {str(st.session_state.perfil).upper()}")
+    # REMOVIDO "Perfil:" - Deixando apenas o nome do cargo
+    st.sidebar.markdown(f"## {st.session_state.perfil}")
     if st.sidebar.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
     st.sidebar.markdown("---")
     if st.sidebar.button("⬅️ VOLTAR AO LOGIN"): 
@@ -91,64 +87,78 @@ elif st.session_state.page == 'lancamento':
 
     st.markdown("## 📝 Novo Registro")
     
-    with st.form("form_aurora", clear_on_submit=True):
+    with st.form("form_aurora"):
         c1, c2, c3 = st.columns(3)
         placa = c1.text_input("Placa")
         caminhao = c2.text_input("Caminhão")
+        # DATA NO FORMATO BRASILEIRO
+        data_sel = c3.date_input("Data da Operação", datetime.now(), format="DD/MM/YYYY")
         
-        # AJUSTE DA DATA (FORMATO BRASILEIRO NA TELA)
-        data_selecionada = c3.date_input("Data da Operação", datetime.now(), format="DD/MM/YYYY")
-        data_br = data_selecionada.strftime("%d/%m/%Y")
-
         st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
         c4, c5, c6, c7 = st.columns(4)
-        s_patio = c4.text_input("Saída Pátio")
-        c_etc = c5.text_input("Chegada ETC")
-        e_class = c6.text_input("Ent. Classif.")
-        s_class = c7.text_input("Saí. Classif.")
+        s_patio = c4.text_input("Saída Pátio (HHMM)")
+        c_etc = c5.text_input("Chegada ETC (HHMM)")
+        e_class = c6.text_input("Ent. Classif. (HHMM)")
+        s_class = c7.text_input("Saí. Classif. (HHMM)")
 
         st.markdown("<div class='section-HR'>BALANÇAS E TOMBADOR</div>", unsafe_allow_html=True)
         c8, c9, c10, c11, c12, c13 = st.columns(6)
-        e_bal1 = c8.text_input("Ent. Bal. 1")
-        s_bal1 = c9.text_input("Saí. Bal. 1")
-        e_tom = c10.text_input("Ent. Tomb.")
-        s_tom = c11.text_input("Saí. Tomb.")
-        e_bal2 = c12.text_input("Ent. Bal. 2")
-        s_bal2 = c13.text_input("Saí. Bal. 2")
+        e_bal1 = c8.text_input("Ent. Bal. 1 (HHMM)")
+        s_bal1 = c9.text_input("Saí. Bal. 1 (HHMM)")
+        e_tom = c10.text_input("Ent. Tomb. (HHMM)")
+        s_tom = c11.text_input("Saí. Tomb. (HHMM)")
+        e_bal2 = c12.text_input("Ent. Bal. 2 (HHMM)")
+        s_bal2 = c13.text_input("Saí. Bal. 2 (HHMM)")
 
         st.markdown("<div class='section-HR'>FECHAMENTO</div>", unsafe_allow_html=True)
         c14, c15 = st.columns(2)
-        s_etc = c14.text_input("Saída ETC Final")
+        s_etc_final = c14.text_input("Saída ETC Final (HHMM)")
         p_liq = c15.text_input("Peso Líquido")
 
         if st.form_submit_button("SALVAR REGISTRO"):
-            tt_v = calc_diff(s_patio, c_etc)
-            tt_c = calc_diff(e_class, s_class)
-            tt_b1 = calc_diff(e_bal1, s_bal1)
-            tt_t = calc_diff(e_tom, s_tom)
-            tt_b2 = calc_diff(e_bal2, s_bal2)
-            tt_total = tt_v + tt_c + tt_b1 + tt_t + tt_b2
+            # Cálculos automáticos convertendo tudo para HORA
+            t_viagem = calc_diff(s_patio, c_etc)
+            t_class = calc_diff(e_class, s_class)
+            t_bal1 = calc_diff(e_bal1, s_bal1)
+            t_tomb = calc_diff(e_tom, s_tom)
+            t_bal2 = calc_diff(e_bal2, s_bal2)
+            
+            # TT OPERAÇÃO (Soma de todos os intervalos em formato de hora)
+            tt_operacao = t_viagem + t_class + t_bal1 + t_tomb + t_bal2
 
             novo = {
-                "PLACA": placa.upper(), "CAMINHÃO": caminhao.upper(), "DATA": data_br,
-                "SAÍDA PÁTIO": formatar_hora(s_patio), "CHEGADA ETC": formatar_hora(c_etc), "TT VIAGEM": td_to_str(tt_v),
-                "ENTR. CLASSIF": formatar_hora(e_class), "SAÍDA CLASSIF": formatar_hora(s_class), "TT CLASSIF": td_to_str(tt_c),
-                "ENTR. BALANÇA 1": formatar_hora(e_bal1), "SAÍDA BALANÇA 1": formatar_hora(s_bal1), "TT BALANÇA 1": td_to_str(tt_b1),
-                "ENT. TOMBADOR": formatar_hora(e_tom), "SAÍDA TOMBADOR": formatar_hora(s_tom), "TT TOMBADOR": td_to_str(tt_t),
-                "ENT. BALANÇA 2": formatar_hora(e_bal2), "SAÍDA BALANÇA 2": formatar_hora(s_bal2), "TT BALANÇA 2": td_to_str(tt_b2),
-                "SAÍDA ETC": formatar_hora(s_etc), "TT OPERAÇÃO": td_to_str(tt_total), "PESO LÍQUIDO": p_liq
+                "PLACA": placa.upper(), "CAMINHÃO": caminhao.upper(), 
+                "DATA": data_sel.strftime("%d/%m/%Y"),
+                "SAÍDA PÁTIO": formatar_hora(s_patio), "CHEGADA ETC": formatar_hora(c_etc), 
+                "TT VIAGEM": td_to_str(t_viagem),
+                "ENT. CLASSIF": formatar_hora(e_class), "SAÍ. CLASSIF": formatar_hora(s_class), 
+                "TT CLASSIF": td_to_str(t_class),
+                "ENT. BAL 1": formatar_hora(e_bal1), "SAÍ. BAL 1": formatar_hora(s_bal1), 
+                "TT BAL 1": td_to_str(t_bal1),
+                "ENT. TOMB": formatar_hora(e_tom), "SAÍ. TOMB": formatar_hora(s_tom), 
+                "TT TOMB": td_to_str(t_tomb),
+                "ENT. BAL 2": formatar_hora(e_bal2), "SAÍ. BAL 2": formatar_hora(s_bal2), 
+                "TT BAL 2": td_to_str(t_bal2),
+                "SAÍDA ETC": formatar_hora(s_etc_final), 
+                "TT OPERAÇÃO": td_to_str(tt_operacao), 
+                "PESO LÍQUIDO": p_liq
             }
             df = pd.read_csv(DB_FILE)
             df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success(f"✅ Salvo! Data: {data_br}")
+            st.success(f"✅ Registro Salvo! TT Operação: {td_to_str(tt_operacao)}")
 
-# --- TELA 3: VISUALIZAÇÃO ---
+# --- TELA 3: VISUALIZAÇÃO E EXPORTAÇÃO ---
 elif st.session_state.page == 'visualizacao':
     st.sidebar.button("⬅️ Voltar", on_click=lambda: st.session_state.update(page='lancamento'))
-    st.markdown("## 📊 Histórico")
-    df = pd.read_csv(DB_FILE)
-    st.dataframe(df, use_container_width=True)
+    st.markdown("## 📊 Tabela de Movimentação")
     
-    csv = df.to_csv(index=False, sep=';', encoding='latin1').encode('latin1')
-    st.download_button("📥 Exportar Excel", csv, "relatorio.csv", "text/csv")
+    if os.path.exists(DB_FILE):
+        df = pd.read_csv(DB_FILE)
+        st.dataframe(df, use_container_width=True)
+        
+        # Exportação Excel
+        csv = df.to_csv(index=False, sep=';', encoding='latin1').encode('latin1')
+        st.download_button("📥 Baixar Planilha Excel", csv, "relatorio_aurora.csv", "text/csv")
+    else:
+        st.error("Arquivo de dados não encontrado.")
