@@ -11,7 +11,7 @@ USUARIOS = {
     "operador1": {"senha": "123", "perfil": "OPERADOR"}
 }
 
-st.set_page_config(page_title="Aurora Port", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Zion - Tempos e Movimentos", layout="wide", initial_sidebar_state="expanded")
 
 # --- MÁSCARA JS (HORA) ---
 def inject_mask():
@@ -37,51 +37,53 @@ def inject_mask():
         """, height=0
     )
 
-# --- CSS PROFISSIONAL E COMPACTO (CAMPOS 4CM / 4 COLUNAS) ---
+# --- CSS PROFISSIONAL COM TÍTULO AZUL ROYAL E LINHAS EXTENDIDAS ---
 st.markdown("""
     <style>
+    /* Título Zion em Azul Royal */
+    .title-zion {
+        color: #4169E1; /* Royal Blue */
+        font-family: 'Arial Black', sans-serif;
+        font-size: 28px;
+        margin-top: -30px;
+        margin-bottom: 20px;
+        text-align: left;
+    }
+
     /* Trava largura dos campos em aprox 4cm (150px) */
     div[data-testid="stTextInput"], div[data-testid="stDateInput"], .stSelectbox {
         width: 150px !important;
         flex: none !important;
     }
     
-    /* Organiza colunas com distância horizontal de 2cm (40px aprox) */
+    /* Organiza colunas com distância horizontal de 2cm */
     [data-testid="column"] {
         flex: 0 0 auto !important;
         width: 150px !important;
         margin-right: 40px !important; 
     }
 
-    /* Remove espaços excessivos entre linhas */
-    [data-testid="stVerticalBlock"] {
-        gap: 0.3rem !important;
-    }
-
-    .main .block-container {
-        padding-top: 1.5rem !important;
-        margin-left: 0 !important;
-    }
-
+    /* Linha divisória estendida pelos 4 campos */
     .section-HR { 
-        border-bottom: 2px solid #004b87; 
+        border-bottom: 2px solid #4169E1; 
         margin: 15px 0 10px 0; 
-        color: #004b87; 
+        color: #4169E1; 
         font-size: 13px;
         font-weight: bold;
-        width: 720px; /* Largura total das 4 colunas + gaps */
+        width: 720px; /* Largura total: (150px * 4) + (40px * 3 gaps) */
     }
 
+    /* Compactação Geral */
+    [data-testid="stVerticalBlock"] { gap: 0.2rem !important; }
     label { font-size: 11px !important; font-weight: bold !important; }
     input { height: 1.8rem !important; font-size: 13px !important; }
-
-    /* Estilo Sidebar */
-    [data-testid="stSidebar"] { background-color: #f0f2f6; width: 200px !important; }
+    
+    .main .block-container { padding-top: 2rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
 # --- BANCO DE DADOS ---
-DB_FILE = "dados_porto_v2.csv"
+DB_FILE = "dados_porto_zion.csv"
 COLUNAS = [
     "PLACA", "CAMINHÃO", "DATA", "SAÍDA PÁTIO", "CHEGADA ETC", "TT VIAGEM",
     "ENT. CLASSIF", "SAÍ. CLASSIF", "TT CLASSIF", "ENT. BAL 1", "SAÍ. BAL 1", 
@@ -94,19 +96,20 @@ if not os.path.exists(DB_FILE):
 
 if 'page' not in st.session_state: st.session_state.page = 'login'
 
-# --- BARRA LATERAL (BOTÕES À ESQUERDA) ---
+# --- SIDEBAR ---
 if st.session_state.page != 'login':
     with st.sidebar:
-        st.markdown("### 🚢 AURORA PORT")
-        st.write(f"ID: **{st.session_state.perfil}**")
+        st.markdown("<h2 style='color:#4169E1;'>ZION</h2>", unsafe_allow_html=True)
+        st.write(f"Usuário: **{st.session_state.perfil}**")
         st.markdown("---")
         if st.button("📝 Novo Lançamento"): st.session_state.page = 'lancamento'; st.rerun()
-        if st.button("📊 Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
+        if st.button("📊 Relatório Geral"): st.session_state.page = 'visualizacao'; st.rerun()
+        st.markdown("---")
         if st.button("⬅️ Sair"): st.session_state.page = 'login'; st.rerun()
 
 # --- TELA LOGIN ---
 if st.session_state.page == 'login':
-    st.markdown("<h2 style='color:#004b87;'>AURORA - LOGIN</h2>", unsafe_allow_html=True)
+    st.markdown("<div class='title-zion'>Zion - Tempos e movimentos</div>", unsafe_allow_html=True)
     u = st.text_input("Usuário")
     p = st.text_input("Senha", type="password")
     if st.button("Entrar"):
@@ -114,14 +117,17 @@ if st.session_state.page == 'login':
             st.session_state.perfil = USUARIOS[u]["perfil"]
             st.session_state.page = 'lancamento'; st.rerun()
 
-# --- TELA LANÇAMENTO (ORGANIZADA EM 4 COLUNAS) ---
+# --- TELA LANÇAMENTO ---
 elif st.session_state.page == 'lancamento':
-    with st.form("form_aurora", clear_on_submit=False):
-        # Linha 1: Identificação
+    st.markdown("<div class='title-zion'>Zion - Tempos e movimentos</div>", unsafe_allow_html=True)
+    
+    with st.form("form_zion", clear_on_submit=False):
+        # Linha 1
         c1, c2, c3, c4 = st.columns(4)
         placa = c1.text_input("Placa")
         caminhao = c2.text_input("Caminhão")
-        data_sel = c3.date_input("Data", datetime.now())
+        # DATA NO FORMATO PT-BR DD/MM/AAAA
+        data_sel = c3.date_input("Data", datetime.now(), format="DD/MM/YYYY")
         
         st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
         # Linha 2
@@ -173,22 +179,22 @@ elif st.session_state.page == 'lancamento':
             df = pd.read_csv(DB_FILE)
             df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success("✅ Salvo com sucesso!")
+            st.success("✅ Salvo!")
             st.rerun()
 
     inject_mask()
 
 # --- TELA VISUALIZAÇÃO ---
 elif st.session_state.page == 'visualizacao':
-    st.markdown("### 📊 Relatório Geral")
+    st.markdown("<div class='title-zion'>Relatório Geral</div>", unsafe_allow_html=True)
     df = pd.read_csv(DB_FILE)
     st.dataframe(df, use_container_width=True)
     
-    # Exportação Excel Profissional
-    csv = df.to_csv(index=False).encode('utf-8')
+    # Exportação Excel (CSV formatado)
+    csv = df.to_csv(index=False).encode('utf-8-sig')
     st.download_button(
-        label="📥 EXPORTAR PARA EXCEL (CSV)",
+        label="📥 EXPORTAR PARA EXCEL",
         data=csv,
-        file_name=f'relatorio_aurora_{datetime.now().strftime("%d_%m_%H%M")}.csv',
+        file_name=f'zion_relatorio_{datetime.now().strftime("%d_%m_%Y")}.csv',
         mime='text/csv',
     )
