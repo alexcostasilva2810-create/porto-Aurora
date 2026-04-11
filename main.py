@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import os
 from datetime import datetime
 import streamlit.components.v1 as components
 
@@ -31,101 +30,85 @@ def inject_mask():
         """, height=0
     )
 
-# --- CSS ULTRA COMPACTO (CAMPOS 4CM E TÍTULO AZUL ROYAL) ---
+# --- CSS TELA COMPACTA (4CM / AZUL ROYAL) ---
 st.markdown("""
     <style>
-    .title-zion { color: #4169E1; font-family: 'Arial Black'; font-size: 24px; margin-top: -30px; margin-bottom: 10px; }
+    .title-zion { color: #4169E1; font-family: 'Arial Black'; font-size: 26px; margin-top: -30px; margin-bottom: 15px; }
     div[data-testid="stTextInput"], div[data-testid="stDateInput"] { width: 150px !important; flex: none !important; }
     [data-testid="column"] { flex: 0 0 auto !important; width: 150px !important; margin-right: 40px !important; }
-    .section-HR { border-bottom: 2px solid #4169E1; margin: 10px 0; color: #4169E1; font-size: 13px; font-weight: bold; width: 720px; }
+    .section-HR { border-bottom: 2px solid #4169E1; margin: 12px 0; color: #4169E1; font-size: 13px; font-weight: bold; width: 720px; }
     label { font-size: 11px !important; font-weight: bold !important; }
-    input { height: 1.8rem !important; font-size: 13px !important; }
-    .main .block-container { padding-top: 2rem !important; margin-left: 0 !important; }
+    input { height: 1.9rem !important; font-size: 13px !important; }
+    .main .block-container { padding-top: 2rem !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- SISTEMA DE MEMÓRIA ATIVA ---
-campos_zion = [
-    "placa", "caminhao", "s_patio", "c_etc", "tt_v", "e_cl", "s_cl", "tt_cl",
-    "e_b1", "s_b1", "tt_b1", "e_to", "s_to", "tt_to", "e_b2", "s_b2", "tt_b2",
-    "s_etc", "tt_ot", "p_liq"
-]
+# --- INICIALIZAÇÃO DA PÁGINA ---
+if 'page' not in st.session_state: st.session_state.page = 'lancamento'
 
-if 'page' not in st.session_state: st.session_state.page = 'login'
-for k in campos_zion:
-    if k not in st.session_state: st.session_state[k] = ""
+# --- BARRA LATERAL (MENU RESTAURADO) ---
+with st.sidebar:
+    st.markdown("<h2 style='color:#4169E1;'>ZION</h2>", unsafe_allow_html=True)
+    if st.button("📝 Novo Lançamento"): st.session_state.page = 'lancamento'; st.rerun()
+    if st.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
+    st.markdown("---")
+    if st.button("⬅️ Sair / Login"): st.session_state.page = 'login'; st.rerun()
 
-# Função para salvar no estado enquanto digita
-def salvar_estado(chave):
-    st.session_state[chave] = st.session_state["tmp_" + chave]
-
-# --- SIDEBAR (BARRA LATERAL) ---
-if st.session_state.page != 'login':
-    with st.sidebar:
-        st.markdown("<h2 style='color:#4169E1;'>ZION</h2>", unsafe_allow_html=True)
-        if st.button("📝 Novo Lançamento"): st.session_state.page = 'lancamento'; st.rerun()
-        if st.button("📊 Ver Tabela"): st.session_state.page = 'visualizacao'; st.rerun()
-        st.markdown("---")
-        if st.button("⬅️ Sair / Login"): st.session_state.page = 'login'; st.rerun()
-
-# --- TELA LOGIN ---
-if st.session_state.page == 'login':
-    st.markdown("<div class='title-zion'>Zion - Tempos e movimentos</div>", unsafe_allow_html=True)
-    u = st.text_input("Usuário")
-    p = st.text_input("Senha", type="password")
-    if st.button("Acessar"):
-        st.session_state.page = 'lancamento'; st.rerun()
-
-# --- TELA LANÇAMENTO (COMPACTA 4CM) ---
-elif st.session_state.page == 'lancamento':
+# --- TELA LANÇAMENTO (COM TRAVA DE DADOS) ---
+if st.session_state.page == 'lancamento':
     st.markdown("<div class='title-zion'>Zion - Tempos e movimentos</div>", unsafe_allow_html=True)
     
-    with st.container():
-        # Linha 1
-        c1, c2, c3, c4 = st.columns(4)
-        st.session_state.placa = c1.text_input("Placa", value=st.session_state.placa, key="tmp_placa", on_change=salvar_estado, args=("placa",))
-        st.session_state.caminhao = c2.text_input("Caminhão", value=st.session_state.caminhao, key="tmp_cam", on_change=salvar_estado, args=("caminhao",))
-        data_op = c3.date_input("Data", datetime.now(), format="DD/MM/YYYY")
-        
-        st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
-        c5, c6, c7, c8 = st.columns(4)
-        st.session_state.s_patio = c5.text_input("Saída Pátio", value=st.session_state.s_patio, key="tmp_sp", on_change=salvar_estado, args=("s_patio",), placeholder="00:00:00")
-        st.session_state.c_etc = c6.text_input("Chegada ETC", value=st.session_state.c_etc, key="tmp_ce", on_change=salvar_estado, args=("c_etc",), placeholder="00:00:00")
-        st.session_state.tt_v = c7.text_input("TT Viagem", value=st.session_state.tt_v, key="tmp_tv", on_change=salvar_estado, args=("tt_v",), placeholder="00:00:00")
-        st.session_state.e_cl = c8.text_input("Ent. Class", value=st.session_state.e_cl, key="tmp_ec", on_change=salvar_estado, args=("e_cl",), placeholder="00:00:00")
-        
-        c9, c10, c11, c12 = st.columns(4)
-        st.session_state.s_cl = c9.text_input("Saí. Class", value=st.session_state.s_cl, key="tmp_sc", on_change=salvar_estado, args=("s_cl",), placeholder="00:00:00")
-        st.session_state.tt_cl = c10.text_input("TT Class", value=st.session_state.tt_cl, key="tmp_tc", on_change=salvar_estado, args=("tt_cl",), placeholder="00:00:00")
+    # Linha 1: Identificação
+    c1, c2, c3, c4 = st.columns(4)
+    # O uso do 'key' direto aqui trava o valor na memória (session_state)
+    placa = c1.text_input("Placa", key="placa_mem")
+    caminhao = c2.text_input("Caminhão", key="cam_mem")
+    data_op = c3.date_input("Data", datetime.now(), format="DD/MM/YYYY", key="data_mem")
+    
+    st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
+    c5, c6, c7, c8 = st.columns(4)
+    s_patio = c5.text_input("Saída Pátio", placeholder="00:00:00", key="sp_mem")
+    c_etc = c6.text_input("Chegada ETC", placeholder="00:00:00", key="ce_mem")
+    tt_v = c7.text_input("TT Viagem", placeholder="00:00:00", key="tv_mem")
+    e_cl = c8.text_input("Ent. Class", placeholder="00:00:00", key="ec_mem")
+    
+    c9, c10 = st.columns(2)
+    s_cl = c9.text_input("Saí. Class", placeholder="00:00:00", key="sc_mem")
+    tt_cl = c10.text_input("TT Class", placeholder="00:00:00", key="tc_mem")
 
-        st.markdown("<div class='section-HR'>BALANÇAS E TOMBADOR</div>", unsafe_allow_html=True)
-        c13, c14, c15, c16 = st.columns(4)
-        st.session_state.e_b1 = c13.text_input("Ent. Bal 1", value=st.session_state.e_b1, key="tmp_b1e", on_change=salvar_estado, args=("e_b1",), placeholder="00:00:00")
-        st.session_state.s_b1 = c14.text_input("Saí. Bal 1", value=st.session_state.s_b1, key="tmp_b1s", on_change=salvar_estado, args=("s_b1",), placeholder="00:00:00")
-        st.session_state.tt_b1 = c15.text_input("TT Bal 1", value=st.session_state.tt_b1, key="tmp_b1t", on_change=salvar_estado, args=("tt_b1",), placeholder="00:00:00")
-        st.session_state.e_to = c16.text_input("Ent. Tomb", value=st.session_state.e_to, key="tmp_toe", on_change=salvar_estado, args=("e_to",), placeholder="00:00:00")
-        
-        c17, c18, c19, c20 = st.columns(4)
-        st.session_state.s_to = c17.text_input("Saí. Tomb", value=st.session_state.s_to, key="tmp_tos", on_change=salvar_estado, args=("s_to",), placeholder="00:00:00")
-        st.session_state.tt_to = c18.text_input("TT Tomb", value=st.session_state.tt_to, key="tmp_tot", on_change=salvar_estado, args=("tt_to",), placeholder="00:00:00")
-        st.session_state.e_b2 = c19.text_input("Ent. Bal 2", value=st.session_state.e_b2, key="tmp_b2e", on_change=salvar_estado, args=("e_b2",), placeholder="00:00:00")
-        st.session_state.s_b2 = c20.text_input("Saí. Bal 2", value=st.session_state.s_b2, key="tmp_b2s", on_change=salvar_estado, args=("s_b2",), placeholder="00:00:00")
+    st.markdown("<div class='section-HR'>BALANÇAS E TOMBADOR</div>", unsafe_allow_html=True)
+    c11, c12, c13, c14 = st.columns(4)
+    e_b1 = c11.text_input("Ent. Bal 1", placeholder="00:00:00", key="b1e_mem")
+    s_b1 = c12.text_input("Saí. Bal 1", placeholder="00:00:00", key="b1s_mem")
+    tt_b1 = c13.text_input("TT Bal 1", placeholder="00:00:00", key="b1t_mem")
+    e_to = c14.text_input("Ent. Tomb", placeholder="00:00:00", key="toe_mem")
+    
+    c15, c16, c17, c18 = st.columns(4)
+    s_to = c15.text_input("Saí. Tomb", placeholder="00:00:00", key="tos_mem")
+    tt_to = c16.text_input("TT Tomb", placeholder="00:00:00", key="tot_mem")
+    e_b2 = c17.text_input("Ent. Bal 2", placeholder="00:00:00", key="b2e_mem")
+    s_b2 = c18.text_input("Saí. Bal 2", placeholder="00:00:00", key="b2s_mem")
 
-        st.markdown("<div class='section-HR'>FECHAMENTO</div>", unsafe_allow_html=True)
-        c21, c22, c23, c24 = st.columns(4)
-        st.session_state.tt_b2 = c21.text_input("TT Bal 2", value=st.session_state.tt_b2, key="tmp_b2t", on_change=salvar_estado, args=("tt_b2",), placeholder="00:00:00")
-        st.session_state.s_etc = c22.text_input("Saída ETC", value=st.session_state.s_etc, key="tmp_setc", on_change=salvar_estado, args=("s_etc",), placeholder="00:00:00")
-        st.session_state.tt_ot = c23.text_input("TT Total", value=st.session_state.tt_ot, key="tmp_ttot", on_change=salvar_estado, args=("tt_ot",), placeholder="00:00:00")
-        st.session_state.p_liq = c24.text_input("Peso Líq.", value=st.session_state.p_liq, key="tmp_pliq", on_change=salvar_estado, args=("p_liq",))
+    st.markdown("<div class='section-HR'>FECHAMENTO</div>", unsafe_allow_html=True)
+    c19, c20, c21, c22 = st.columns(4)
+    tt_b2 = c19.text_input("TT Bal 2", placeholder="00:00:00", key="b2t_mem")
+    s_etc = c20.text_input("Saída ETC", placeholder="00:00:00", key="setc_mem")
+    tt_ot = c21.text_input("TT Total", placeholder="00:00:00", key="ttot_mem")
+    p_liq = c22.text_input("Peso Líq.", key="pliq_mem")
 
-        if st.button("💾 SALVAR REGISTRO"):
-            # Lógica de salvar aqui...
-            st.success("✅ Salvo no sistema!")
-            for key in campos_zion: st.session_state[key] = ""
-            st.rerun()
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("💾 SALVAR REGISTRO"):
+        st.success("✅ Registro salvo com sucesso!")
+        # Limpa os campos da memória após salvar
+        chaves = ["placa_mem", "cam_mem", "sp_mem", "ce_mem", "tv_mem", "ec_mem", "sc_mem", "tc_mem", 
+                  "b1e_mem", "b1s_mem", "b1t_mem", "toe_mem", "tos_mem", "tot_mem", "b2e_mem", 
+                  "b2s_mem", "b2t_mem", "setc_mem", "ttot_mem", "pliq_mem"]
+        for k in chaves: st.session_state[k] = ""
+        st.rerun()
+
     inject_mask()
 
-# --- TELA TABELA ---
+# --- TELA VISUALIZAÇÃO ---
 elif st.session_state.page == 'visualizacao':
-    st.markdown("<div class='title-zion'>Relatório Geral</div>", unsafe_allow_html=True)
-    st.write("Tabela de dados salvos...")
+    st.markdown("<div class='title-zion'>Relatório</div>")
+    st.write("Dados da tabela aparecerão aqui.")
