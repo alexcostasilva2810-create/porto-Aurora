@@ -24,12 +24,11 @@ def inject_mask():
             if (v.length > 4) v = v.replace(/(\d{2})(\d{2})(\d{2})/, "$1:$2:$3");
             else if (v.length > 2) v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
             e.target.value = v;
-            // Garante que o Streamlit capture o valor antes de qualquer limpeza
             e.target.dispatchEvent(new Event('input', { bubbles: true }));
         }
         const inputs = window.parent.document.querySelectorAll('input[type="text"]');
         inputs.forEach(input => {
-            if (!input.dataset.maskSet) {
+            if (!input.dataset.maskSet && input.placeholder === "00:00:00") {
                 input.addEventListener('input', maskTime);
                 input.dataset.maskSet = "true";
             }
@@ -61,13 +60,16 @@ def td_to_str(td):
     m, s = divmod(rem, 60)
     return f"{h:02d}:{m:02d}:{s:02d}"
 
-# --- BANCO DE DADOS ---
+# --- BANCO DE DADOS (21 CAMPOS) ---
 DB_FILE = "dados_porto_v2.csv"
 COLUNAS = [
-    "PLACA", "CAMINHÃO", "DATA", "SAÍDA PÁTIO", "CHEGADA ETC", "TT VIAGEM",
-    "ENT. CLASSIF", "SAÍ. CLASSIF", "TT CLASSIF", "ENT. BAL 1", "SAÍ. BAL 1", 
-    "TT BAL 1", "ENT. TOMB", "SAÍ. TOMB", "TT TOMB", "ENT. BAL 2", "SAÍ. BAL 2", 
-    "TT BAL 2", "SAÍDA ETC", "TT OPERAÇÃO", "PESO LÍQUIDO"
+    "PLACA", "CAMINHÃO", "DATA", 
+    "SAÍDA PÁTIO", "CHEGADA ETC", "TT VIAGEM",
+    "ENT. CLASSIF", "SAÍ. CLASSIF", "TT CLASSIF",
+    "ENT. BAL 1", "SAÍ. BAL 1", "TT BAL 1",
+    "ENT. TOMB", "SAÍ. TOMB", "TT TOMB",
+    "ENT. BAL 2", "SAÍ. BAL 2", "TT BAL 2",
+    "SAÍDA ETC", "TT OPERAÇÃO", "PESO LÍQUIDO"
 ]
 
 if not os.path.exists(DB_FILE):
@@ -88,7 +90,7 @@ if st.session_state.page == 'login':
                 st.session_state.page = 'lancamento'
                 st.rerun()
 
-# --- TELA 2: LANÇAMENTOS (TODOS OS CAMPOS) ---
+# --- TELA 2: LANÇAMENTOS ---
 elif st.session_state.page == 'lancamento':
     st.sidebar.markdown(f"## {st.session_state.perfil}")
     if st.sidebar.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
@@ -124,28 +126,31 @@ elif st.session_state.page == 'lancamento':
         p_liq = c15.text_input("Peso Líquido")
 
         if st.form_submit_button("SALVAR REGISTRO"):
-            # Cálculos de todos os tempos
-            t_v = calc_diff(s_patio, c_etc)
-            t_c = calc_diff(e_class, s_class)
-            t_b1 = calc_diff(e_bal1, s_bal1)
-            t_t = calc_diff(e_tom, s_tom)
-            t_b2 = calc_diff(e_bal2, s_bal2)
-            tt_total = t_v + t_c + t_b1 + t_t + t_b2
+            # Cálculos de todos os 6 TTs (Time Taken)
+            tt_v = calc_diff(s_patio, c_etc)
+            tt_c = calc_diff(e_class, s_class)
+            tt_b1 = calc_diff(e_bal1, s_bal1)
+            tt_t = calc_diff(e_tom, s_tom)
+            tt_b2 = calc_diff(e_bal2, s_bal2)
+            
+            # TT Total (Soma de todos)
+            tt_total = tt_v + tt_c + tt_b1 + tt_t + tt_b2
             
             novo = {
                 "PLACA": placa.upper(), "CAMINHÃO": caminhao.upper(), 
                 "DATA": data_sel.strftime("%d/%m/%Y"),
-                "SAÍDA PÁTIO": s_patio, "CHEGADA ETC": c_etc, "TT VIAGEM": td_to_str(t_v),
-                "ENT. CLASSIF": e_class, "SAÍ. CLASSIF": s_class, "TT CLASSIF": td_to_str(t_c),
-                "ENT. BAL 1": e_bal1, "SAÍ. BAL 1": s_bal1, "TT BAL 1": td_to_str(t_b1),
-                "ENT. TOMB": e_tom, "SAÍ. TOMB": s_tom, "TT TOMB": td_to_str(t_t),
-                "ENT. BAL 2": e_bal2, "SAÍ. BAL 2": s_bal2, "TT BAL 2": td_to_str(t_b2),
+                "SAÍDA PÁTIO": s_patio, "CHEGADA ETC": c_etc, "TT VIAGEM": td_to_str(tt_v),
+                "ENT. CLASSIF": e_class, "SAÍ. CLASSIF": s_class, "TT CLASSIF": td_to_str(tt_c),
+                "ENT. BAL 1": e_bal1, "SAÍ. BAL 1": s_bal1, "TT BAL 1": td_to_str(tt_b1),
+                "ENT. TOMB": e_tom, "SAÍ. TOMB": s_tom, "TT TOMB": td_to_str(tt_t),
+                "ENT. BAL 2": e_bal2, "SAÍ. BAL 2": s_bal2, "TT BAL 2": td_to_str(tt_b2),
                 "SAÍDA ETC": s_etc_final, "TT OPERAÇÃO": td_to_str(tt_total), "PESO LÍQUIDO": p_liq
             }
+            
             df = pd.read_csv(DB_FILE)
             df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success("✅ Registro completo salvo com sucesso!")
+            st.success(f"✅ Registro Salvo! TT Total: {td_to_str(tt_total)}")
             st.rerun()
 
     inject_mask()
