@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime, timedelta
+import streamlit.components.v1 as components
 
 # 🔑 GESTÃO DE USUÁRIOS
 USUARIOS = {
@@ -12,7 +13,36 @@ USUARIOS = {
 
 st.set_page_config(page_title="Aurora Port", layout="wide")
 
-# CSS para esconder o texto "Perfil:" e estilizar
+# --- JAVASCRIPT PARA MÁSCARA EM TEMPO REAL ---
+# Esse bloco faz com que, ao digitar, os ":" apareçam sozinhos
+def inject_mask():
+    components.html(
+        """
+        <script>
+        const maskTime = (e) => {
+            let v = e.target.value.replace(/\D/g, '');
+            if (v.length > 6) v = v.slice(0, 6);
+            if (v.length > 4) v = v.replace(/(\d{2})(\d{2})(\d{2})/, "$1:$2:$3");
+            else if (v.length > 2) v = v.replace(/(\d{2})(\d{2})/, "$1:$2");
+            e.target.value = v;
+        }
+        
+        // Aplica a máscara em todos os inputs de texto que pareçam campos de hora
+        const inputs = window.parent.document.querySelectorAll('input[type="text"]');
+        inputs.forEach(input => {
+            if (input.getAttribute('aria-label') && 
+               (input.getAttribute('aria-label').includes('Pátio') || 
+                input.getAttribute('aria-label').includes('ETC') || 
+                input.getAttribute('aria-label').includes('Classif') || 
+                input.getAttribute('aria-label').includes('Bal') || 
+                input.getAttribute('aria-label').includes('Tomb'))) {
+                input.addEventListener('input', maskTime);
+            }
+        });
+        </script>
+        """, height=0
+    )
+
 st.markdown("""
     <style>
     .stButton>button { width: 100%; border-radius: 5px; background-color: #004b87; color: white; font-weight: bold; }
@@ -21,19 +51,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- FUNÇÕES DE LIMPEZA E CÁLCULO ---
-def limpar_e_formatar_hora(texto):
-    """Transforma 092300 em 09:23:00 automaticamente"""
-    n = "".join(filter(str.isdigit, texto))
-    if len(n) == 4: return f"{n[:2]}:{n[2:]}:00"
-    if len(n) >= 6: return f"{n[:2]}:{n[2:4]}:{n[4:6]}"
-    return "00:00:00" if not n else texto
-
+# --- FUNÇÕES DE CÁLCULO ---
 def calc_diff(inicio, fim):
     try:
         fmt = '%H:%M:%S'
-        t1 = datetime.strptime(limpar_e_formatar_hora(inicio), fmt)
-        t2 = datetime.strptime(limpar_e_formatar_hora(fim), fmt)
+        t1 = datetime.strptime(inicio, fmt)
+        t2 = datetime.strptime(fim, fmt)
         if t2 < t1: t2 += timedelta(days=1)
         return t2 - t1
     except: return timedelta(0)
@@ -67,7 +90,6 @@ if st.session_state.page == 'login':
 
 # --- TELA 2: LANÇAMENTOS ---
 elif st.session_state.page == 'lancamento':
-    # AQUI: Removido o texto "Perfil:", deixado apenas o cargo
     st.sidebar.markdown(f"## {st.session_state.perfil}")
     if st.sidebar.button("📊 Ver Tabela Geral"): st.session_state.page = 'visualizacao'; st.rerun()
     if st.sidebar.button("⬅️ VOLTAR AO LOGIN"): st.session_state.page = 'login'; st.rerun()
@@ -78,34 +100,55 @@ elif st.session_state.page == 'lancamento':
         c1, c2, c3 = st.columns(3)
         placa = c1.text_input("Placa")
         caminhao = c2.text_input("Caminhão")
-        # DATA: Agora 100% em DD/MM/AAAA na tela
         data_sel = c3.date_input("Data da Operação", datetime.now(), format="DD/MM/YYYY")
         
-        st.markdown("<div class='section-HR'>LOGÍSTICA E TEMPOS (Digite apenas números: 092300)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='section-HR'>LOGÍSTICA E CLASSIFICAÇÃO</div>", unsafe_allow_html=True)
         c4, c5, c6, c7 = st.columns(4)
-        s_patio = c4.text_input("Saída Pátio")
-        c_etc = c5.text_input("Chegada ETC")
-        e_class = c6.text_input("Ent. Classif.")
-        s_class = c7.text_input("Saí. Classif.")
+        s_patio = c4.text_input("Saída Pátio", placeholder="00:00:00")
+        c_etc = c5.text_input("Chegada ETC", placeholder="00:00:00")
+        e_class = c6.text_input("Ent. Classif.", placeholder="00:00:00")
+        s_class = c7.text_input("Saí. Classif.", placeholder="00:00:00")
 
-        # BOTÃO SALVAR (Indentaçao correta para não dar erro)
+        st.markdown("<div class='section-HR'>BALANÇAS E TOMBADOR</div>", unsafe_allow_html=True)
+        c8, c9, c10, c11, c12, c13 = st.columns(6)
+        e_bal1 = c8.text_input("Ent. Bal. 1", placeholder="00:00:00")
+        s_bal1 = c9.text_input("Saí. Bal. 1", placeholder="00:00:00")
+        e_tom = c10.text_input("Ent. Tomb.", placeholder="00:00:00")
+        s_tom = c11.text_input("Saí. Tomb.", placeholder="00:00:00")
+        e_bal2 = c12.text_input("Ent. Bal. 2", placeholder="00:00:00")
+        s_bal2 = c13.text_input("Saí. Bal. 2", placeholder="00:00:00")
+
+        st.markdown("<div class='section-HR'>FECHAMENTO</div>", unsafe_allow_html=True)
+        c14, c15 = st.columns(2)
+        s_etc_final = c14.text_input("Saída ETC Final", placeholder="00:00:00")
+        p_liq = c15.text_input("Peso Líquido")
+
         if st.form_submit_button("SALVAR REGISTRO"):
-            t_viagem = calc_diff(s_patio, c_etc)
-            t_class = calc_diff(e_class, s_class)
-            tt_total = t_viagem + t_class # Adicione os outros aqui
+            # Lógica de cálculo (os valores já virão com ":" por causa do JS)
+            t_v = calc_diff(s_patio, c_etc)
+            t_c = calc_diff(e_class, s_class)
+            t_b1 = calc_diff(e_bal1, s_bal1)
+            t_t = calc_diff(e_tom, s_tom)
+            t_b2 = calc_diff(e_bal2, s_bal2)
+            tt_total = t_v + t_c + t_b1 + t_t + t_b2
             
             novo = {
-                "PLACA": placa.upper(), 
-                "CAMINHÃO": caminhao.upper(), 
+                "PLACA": placa.upper(), "CAMINHÃO": caminhao.upper(), 
                 "DATA": data_sel.strftime("%d/%m/%Y"),
-                "SAÍDA PÁTIO": limpar_e_formatar_hora(s_patio),
-                "CHEGADA ETC": limpar_e_formatar_hora(c_etc),
-                "TT OPERAÇÃO": td_to_str(tt_total)
+                "SAÍDA PÁTIO": s_patio, "CHEGADA ETC": c_etc, "TT VIAGEM": td_to_str(t_v),
+                "ENT. CLASSIF": e_class, "SAÍ. CLASSIF": s_class, "TT CLASSIF": td_to_str(t_c),
+                "ENT. BAL 1": e_bal1, "SAÍ. BAL 1": s_bal1, "TT BAL 1": td_to_str(t_b1),
+                "ENT. TOMB": e_tom, "SAÍ. TOMB": s_tom, "TT TOMB": td_to_str(t_t),
+                "ENT. BAL 2": e_bal2, "SAÍ. BAL 2": s_bal2, "TT BAL 2": td_to_str(t_b2),
+                "SAÍDA ETC": s_etc_final, "TT OPERAÇÃO": td_to_str(tt_total), "PESO LÍQUIDO": p_liq
             }
             df = pd.read_csv(DB_FILE)
             df = pd.concat([df, pd.DataFrame([novo])], ignore_index=True)
             df.to_csv(DB_FILE, index=False)
-            st.success(f"✅ Salvo! Horário formatado: {limpar_e_formatar_hora(s_patio)}")
+            st.success("✅ Registro salvo com sucesso!")
+
+    # Injeta a máscara JavaScript no final da página
+    inject_mask()
 
 # --- TELA 3: VISUALIZAÇÃO ---
 elif st.session_state.page == 'visualizacao':
