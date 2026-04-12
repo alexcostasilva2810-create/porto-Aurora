@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # ==============================================================================
-# BLOCO 1: CONEXÃO
+# BLOCO 1: CONEXÃO COM A PLANILHA ZION (NOME EXATO DO ARQUIVO)
 # ==============================================================================
 st.set_page_config(page_title="Zion Tecnologia", layout="centered")
 
@@ -18,12 +18,10 @@ def conectar_planilha():
         json_info["private_key"] = json_info["private_key"].replace("\\n", "\n")
         creds = Credentials.from_service_account_info(json_info, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
         client = gspread.authorize(creds)
-        # Tenta abrir "Zion" e a aba "Tempo"
+        # Abre a planilha "Zion"
         planilha = client.open("Zion")
-        try:
-            return planilha.worksheet("Tempo")
-        except:
-            return planilha.get_worksheet(0)
+        # Pega a primeira aba disponível (geralmente a 'Tempo')
+        return planilha.get_worksheet(0)
     except:
         return None
 
@@ -31,7 +29,7 @@ if 'pagina' not in st.session_state:
     st.session_state['pagina'] = 'inicio'
 
 # ==============================================================================
-# BLOCO 2: ESTILO MOBILE
+# BLOCO 2: VISUAL MOBILE
 # ==============================================================================
 def aplicar_visual_celular(cor_fundo_interna):
     st.markdown(f"""
@@ -51,35 +49,30 @@ def aplicar_visual_celular(cor_fundo_interna):
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# BLOCO 3: TELAS
+# BLOCO 3: TELAS E LANÇAMENTOS
 # ==============================================================================
 if st.session_state['pagina'] == 'inicio':
     aplicar_visual_celular("#2D2D2D") 
     st.markdown('<div style="color:white; text-align:center;"><h1>Zion Tecnologia</h1><br><h2 style="color:#FFD700;">Transdourado</h2></div>', unsafe_allow_html=True)
-    for _ in range(10): st.write("")
-    if st.button("ACESSO"):
-        st.session_state['pagina'] = 'menu'
-        st.rerun()
+    for _ in range(8): st.write("")
+    if st.button("ACESSO"): st.session_state['pagina'] = 'menu'; st.rerun()
 
 elif st.session_state['pagina'] == 'menu':
     aplicar_visual_celular("#002366") 
     st.markdown('<h1 class="titulo-amarelo">MENU</h1>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Logistica Patio / ETC"): st.session_state['pagina'] = 'logistica'; st.rerun()
+        if st.button("Logistica Patio"): st.session_state['pagina'] = 'logistica'; st.rerun()
         if st.button("Tombador"): pass
     with c2:
         if st.button("Classificação"): pass
         if st.button("Balança"): pass
     st.write("---")
-    if st.button("VISUALIZAR LANÇAMENTOS"):
-        st.session_state['pagina'] = 'visualizar'
-        st.rerun()
+    if st.button("VISUALIZAR LANÇAMENTOS"): st.session_state['pagina'] = 'visualizar'; st.rerun()
 
 elif st.session_state['pagina'] == 'logistica':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LOGÍSTICA PÁTIO</h1>', unsafe_allow_html=True)
-    # clear_on_submit=True limpa os campos após salvar
     with st.form("logistica_form", clear_on_submit=True):
         placa = st.text_input("PLACA")
         tipo = st.selectbox("TIPO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
@@ -88,20 +81,20 @@ elif st.session_state['pagina'] == 'logistica':
         chegada = st.text_input("CHEGADA ETC", value="00:00:00")
         if st.form_submit_button("SALVAR REGISTRO"):
             try:
-                # Cálculo do tempo e formatação da data
-                fmt = '%H:%M:%S'
-                tt_viagem = str(datetime.strptime(chegada, fmt) - datetime.strptime(saida, fmt))
+                t_saida = datetime.strptime(saida, '%H:%M:%S')
+                t_chegada = datetime.strptime(chegada, '%H:%M:%S')
+                tt_viagem = str(t_chegada - t_saida)
                 data_br = data_sel.strftime("%d/%m/%Y")
                 aba = conectar_planilha()
                 if aba:
                     aba.append_row([placa, tipo, data_br, saida, chegada, tt_viagem])
-                    st.success("Salvo com sucesso!")
+                    st.success("Salvo!")
                 else: st.error("Erro na conexão!")
-            except: st.error("Erro nos dados!")
+            except: st.error("Use o formato 00:00:00")
     if st.button("VOLTAR"): st.session_state['pagina'] = 'menu'; st.rerun()
 
 # ==============================================================================
-# BLOCO 4: VISUALIZAR (COM FILTRO PARA NÃO DAR ERRO)
+# BLOCO 4: VISUALIZAÇÃO BLINDADA (RESOLVE O ERRO DE CARREGAMENTO)
 # ==============================================================================
 elif st.session_state['pagina'] == 'visualizar':
     aplicar_visual_celular("#002366")
@@ -110,28 +103,24 @@ elif st.session_state['pagina'] == 'visualizar':
     aba = conectar_planilha()
     if aba:
         try:
-            # get_all_values é o método mais seguro após uma limpeza manual
-            dados_brutos = aba.get_all_values()
-            
-            if len(dados_brutos) > 1:
-                # Criamos o DataFrame e garantimos que não haja lixo de memória
-                df = pd.DataFrame(dados_brutos[1:], columns=dados_brutos[0])
+            # Pega todos os valores como strings para evitar erro de conversão
+            dados = aba.get_all_values()
+            if len(dados) > 1:
+                # Cria a tabela usando a primeira linha como título
+                df = pd.DataFrame(dados[1:], columns=dados[0])
+                # Limpa linhas que não tem placa
+                df = df[df.iloc[:, 0].str.strip() != ""] 
                 
-                # Remove qualquer linha que tenha ficado com espaços em branco
-                df = df[df['PLACA'].str.strip() != ""]
+                st.write("Registros encontrados:")
+                st.table(df) # Usar st.table é mais seguro contra erros de layout que o st.dataframe
                 
-                if not df.empty:
-                    st.dataframe(df, use_container_width=True, height=400)
-                    
-                    csv = df.to_csv(index=False).encode('utf-8')
-                    st.download_button("BAIXAR RELATÓRIO", csv, " Zion_Logistica.csv", "text/csv")
-                else:
-                    st.info("Nenhum dado válido encontrado após a limpeza.")
+                csv = df.to_csv(index=False).encode('utf-8')
+                st.download_button("BAIXAR CSV", csv, "Zion.csv", "text/csv")
             else:
-                st.info("A planilha está vazia.")
-        except Exception as e:
-            st.error("Erro ao carregar os novos dados. Tente atualizar a página (F5).")
+                st.info("Planilha vazia.")
+        except:
+            st.error("Erro crítico ao ler a planilha. Verifique se o cabeçalho existe.")
+    else:
+        st.error("Planilha 'Zion' não encontrada!")
     
-    if st.button("VOLTAR"):
-        st.session_state['pagina'] = 'menu'
-        st.rerun()
+    if st.button("VOLTAR"): st.session_state['pagina'] = 'menu'; st.rerun()
