@@ -1,32 +1,30 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
+import base64
+import json
 
-def conectar_zion_real():
+def conectar_zion_final():
     try:
-        # Puxa o dicionário formatado do TOML
-        cred_dict = dict(st.secrets["gcp_service_account"])
+        # Pega a string única dos Secrets
+        b64_content = st.secrets["gcp_service_account"]["content"]
         
-        # Corrige as quebras de linha para o formato PEM que o Google aceita
-        cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
+        # Converte de volta para JSON
+        json_info = json.loads(base64.b64decode(b64_content).decode('utf-8'))
         
-        escopos = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]
+        # Corrige as quebras de linha que o JSON as vezes bagunça
+        json_info["private_key"] = json_info["private_key"].replace("\\n", "\n")
         
-        # Autenticação
-        creds = Credentials.from_service_account_info(cred_dict, scopes=escopos)
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(json_info, scopes=scopes)
         client = gspread.authorize(creds)
         
-        # Tenta abrir a planilha (Certifique-se que compartilhou com o e-mail zion-operador...)
         return client.open("Zion").worksheet("Tempo")
-        
     except Exception as e:
-        st.error(f"Erro de Conexão: {e}")
+        st.error(f"Erro: {e}")
         return None
 
 if st.button("CONECTAR AGORA"):
-    planilha = conectar_zion_real()
+    planilha = conectar_zion_final()
     if planilha:
-        st.success("✅ SISTEMA ZION ONLINE. Finalmente conectado.")
+        st.success("✅ FINALMENTE CONECTADO!")
