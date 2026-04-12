@@ -1,48 +1,38 @@
 import streamlit as st
 import gspread
-from google.oauth2.service_account import Credentials
 import base64
 import json
+import os
 
-def conectar_zion_forca_bruta():
+def conectar_definitivo_mesmo():
     try:
-        # 1. Pega o Base64 e remove qualquer espaço que você possa ter colado sem querer
+        # 1. Pega o Base64 do Secret
         encoded_json = st.secrets["gcp_service_account"]["content"].strip()
         
-        # 2. Decodifica
+        # 2. Decodifica e limpa as quebras de linha da chave
         decoded_bytes = base64.b64decode(encoded_json)
         json_data = json.loads(decoded_bytes)
+        json_data["private_key"] = json_data["private_key"].replace("\\n", "\n")
         
-        # 3. LIMPEZA DA CHAVE PRIVADA (Onde o erro 1625 acontece)
-        # Removemos tudo o que não for a chave pura e reconstruímos
-        raw_key = json_data["private_key"]
+        # 3. CRIA UM ARQUIVO DE VERDADE NO SERVIDOR
+        # Isso engana a biblioteca de segurança e evita o erro PEM
+        with open("temp_key.json", "w") as f:
+            json.dump(json_data, f)
         
-        # Remove cabeçalhos, rodapés, quebras de linha e espaços
-        clean_key = raw_key.replace("-----BEGIN PRIVATE KEY-----", "")
-        clean_key = clean_key.replace("-----END PRIVATE KEY-----", "")
-        clean_key = clean_key.replace("\\n", "").replace("\n", "").replace(" ", "").strip()
+        # 4. Autentica lendo o ARQUIVO, não o dicionário
+        # O gspread.service_account aceita o caminho do arquivo
+        client = gspread.service_account(filename="temp_key.json")
         
-        # Reconstrói do zero no formato que o Google AMA (com quebras de linha reais)
-        # Isso mata o erro InvalidByte de uma vez por todas
-        final_key = "-----BEGIN PRIVATE KEY-----\n"
-        for i in range(0, len(clean_key), 64):
-            final_key += clean_key[i:i+64] + "\n"
-        final_key += "-----END PRIVATE KEY-----\n"
-        
-        json_data["private_key"] = final_key
-        
-        # 4. Tenta conectar
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(json_data, scopes=scopes)
-        client = gspread.authorize(creds)
+        # 5. Remove o arquivo por segurança após conectar
+        os.remove("temp_key.json")
         
         return client.open("Zion").worksheet("Tempo")
         
     except Exception as e:
-        st.error(f"Erro na força bruta: {e}")
+        st.error(f"Erro persistente: {e}")
         return None
 
-if st.button("TENTATIVA FINAL - FORÇA BRUTA"):
-    sheet = conectar_zion_forca_bruta()
+if st.button("TENTAR CONEXÃO VIA ARQUIVO"):
+    sheet = conectar_definitivo_mesmo()
     if sheet:
-        st.success("✅ FINALMENTE! Conectado e chave reconstruída com sucesso.")
+        st.success("✅ AGORA FOI! Conectado via arquivo físico temporário.")
