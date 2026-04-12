@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # ==============================================================================
-# BLOCO 1: CONFIGURAÇÕES E CONEXÃO
+# BLOCO 1: CONFIGURAÇÕES E CONEXÃO SEGURA
 # ==============================================================================
 st.set_page_config(page_title="Zion Tecnologia", layout="centered")
 
@@ -26,7 +26,7 @@ if 'pagina' not in st.session_state:
     st.session_state['pagina'] = 'inicio'
 
 # ==============================================================================
-# BLOCO 2: ENGINE DE ESTILO (MÁSCARA MOBILE E BOTÕES)
+# BLOCO 2: ESTILO MOBILE (MÁSCARA E BOTÕES)
 # ==============================================================================
 def aplicar_visual_celular(cor_fundo_interna):
     st.markdown(f"""
@@ -36,26 +36,25 @@ def aplicar_visual_celular(cor_fundo_interna):
             max-width: 380px;
             min-height: 850px;
             background-color: {cor_fundo_interna};
-            border: 12px solid #333;
-            border-radius: 45px;
-            padding: 30px 20px;
+            border: 10px solid #444;
+            border-radius: 40px;
+            padding: 25px 15px;
             margin-top: 10px;
-            box-shadow: 0px 0px 30px rgba(0,0,0,0.9);
+            box-shadow: 0px 0px 25px rgba(0,0,0,0.9);
         }}
         .texto-branco {{
             color: #FFFFFF !important;
             text-align: center;
             font-family: 'Arial', sans-serif;
-            text-shadow: 2px 2px 4px rgba(0,0,0,1);
             font-weight: bold;
+            text-shadow: 2px 2px 4px #000;
         }}
         .titulo-amarelo {{
             color: #FFFF00 !important;
             text-align: center;
-            font-size: 28px;
+            font-size: 26px;
             font-weight: 900;
-            text-shadow: 2px 2px 2px #000;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }}
         div.stButton > button {{
             background-color: #FF8C00;
@@ -65,9 +64,11 @@ def aplicar_visual_celular(cor_fundo_interna):
             height: 50px;
             font-weight: bold;
             box-shadow: 0px 4px 0px #B26200;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             border: none;
         }}
+        /* Estilo para tabelas nítidas */
+        .stDataFrame {{ background-color: white; border-radius: 10px; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -76,71 +77,77 @@ def aplicar_visual_celular(cor_fundo_interna):
 # ==============================================================================
 if st.session_state['pagina'] == 'inicio':
     aplicar_visual_celular("#2D2D2D") 
-    st.markdown('<div class="texto-branco"><h1 style="font-size: 35px;">Seja Bem Vindo</h1><br><h1 style="font-size: 35px;">Zion Tecnologia</h1><br><h2 style="font-size: 28px; color: #FFD700 !important;">Transdourado</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div class="texto-branco"><h1 style="font-size: 32px;">Seja Bem Vindo</h1><p>ao</p><h1 style="font-size: 32px;">Zion Tecnologia</h1><br><h2 style="color: #FFD700 !important;">Transdourado</h2></div>', unsafe_allow_html=True)
     for _ in range(8): st.write("")
     if st.button("ACESSO"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
 
 # ==============================================================================
-# BLOCO 4: MENU PRINCIPAL (TODOS OS BOTÕES RECUPERADOS)
+# BLOCO 4: MENU PRINCIPAL (TODOS OS BOTÕES)
 # ==============================================================================
 elif st.session_state['pagina'] == 'menu':
     aplicar_visual_celular("#002366") 
     st.markdown('<h1 class="titulo-amarelo">MENU</h1>', unsafe_allow_html=True)
     
-    col1, col2 = st.columns(2)
-    with col1:
+    # Organização em duas colunas para caber no celular
+    c1, c2 = st.columns(2)
+    with c1:
         if st.button("Logistica Patio / ETC"):
             st.session_state['pagina'] = 'logistica'
             st.rerun()
         if st.button("Tombador"): pass
         if st.button("Balança"): pass
-    with col2:
+    with c2:
         if st.button("Classificação"): pass
         if st.button("Tabela Ent/Said"): pass
         if st.button("Dashboard"): pass
     
-    st.markdown("---")
-    if st.button("Visualizar Lançamentos"):
+    st.write("---")
+    if st.button("VISUALIZAR LANÇAMENTOS"):
         st.session_state['pagina'] = 'visualizar'
         st.rerun()
     
-    if st.button("SAIR DO SISTEMA"):
+    if st.button("VOLTAR PARA LOGIN"):
         st.session_state['pagina'] = 'inicio'
         st.rerun()
 
 # ==============================================================================
-# BLOCO 5: TELA LOGÍSTICA PÁTIO (SALVAR E LIMPAR)
+# BLOCO 5: TELA LOGÍSTICA (SALVAMENTO E LIMPEZA)
 # ==============================================================================
 elif st.session_state['pagina'] == 'logistica':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LOGÍSTICA PÁTIO</h1>', unsafe_allow_html=True)
     
-    with st.form("form_logistica", clear_on_submit=True):
-        placa = st.text_input("PLACA", placeholder="JVV-7606")
-        tipo = st.selectbox("TIPO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
-        data_f = st.date_input("DATA", datetime.now(), format="DD/MM/YYYY")
-        saida = st.text_input("SAÍDA (HH:MM:SS)", value="00:00:00")
-        chegada = st.text_input("CHEGADA (HH:MM:SS)", value="00:00:00")
+    # clear_on_submit limpa os campos após salvar
+    with st.form("logistica_form", clear_on_submit=True):
+        placa = st.text_input("PLACA", placeholder="ABC-1234")
+        caminhao = st.selectbox("TIPO DE CAMINHÃO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
+        data_sel = st.date_input("DATA", datetime.now(), format="DD/MM/YYYY")
+        saida = st.text_input("SAÍDA PÁTIO (HH:MM:SS)", value="00:00:00")
+        chegada = st.text_input("CHEGADA ETC (HH:MM:SS)", value="00:00:00")
+        
+        btn_salvar = st.form_submit_button("SALVAR REGISTRO")
 
-        if st.form_submit_button("SALVAR REGISTRO"):
+        if btn_salvar:
             try:
-                # Cálculo TT. VIAGEM
+                # Cálculo do TT. VIAGEM
                 fmt = '%H:%M:%S'
-                t_viagem = str(datetime.strptime(chegada, fmt) - datetime.strptime(saida, fmt))
-                data_br = data_f.strftime("%d/%m/%Y")
+                t1 = datetime.strptime(saida, fmt)
+                t2 = datetime.strptime(chegada, fmt)
+                tt_viagem = str(t2 - t1)
+                data_br = data_sel.strftime("%d/%m/%Y") # Salva como 12/04/2026
                 
-                planilha = conectar_planilha()
-                if planilha:
-                    aba = planilha.worksheet("Tempo")
-                    # Ordem: PLACA | CAMINHÃO | DATA | SAÍDA | CHEGADA | TT. VIAGEM
-                    aba.append_row([placa, tipo, data_br, saida, chegada, t_viagem])
-                    st.success("Salvo com sucesso!")
+                gc = conectar_planilha()
+                if gc:
+                    aba = gc.worksheet("Tempo")
+                    # Ordem exata: PLACA, CAMINHÃO, DATA, SAÍDA, CHEGADA, TT.VIAGEM
+                    aba.append_row([placa, caminhao, data_br, saida, chegada, tt_viagem])
+                    st.success(f"Salvo! Viagem: {tt_viagem}")
                 else: st.error("Erro na conexão!")
-            except: st.error("Erro nos dados!")
+            except: st.error("Erro nos dados! Use 00:00:00")
 
-    if st.button("VOLTAR"):
+    if st.button("VOLTAR AO MENU"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
 
@@ -151,21 +158,22 @@ elif st.session_state['pagina'] == 'visualizar':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LANÇAMENTOS</h1>', unsafe_allow_html=True)
     
-    planilha = conectar_planilha()
-    if planilha:
+    gc = conectar_planilha()
+    if gc:
         try:
-            aba = planilha.worksheet("Tempo")
-            # Usando get_all_values para evitar erro de cabeçalho
-            lista_dados = aba.get_all_values()
-            if len(lista_dados) > 1:
-                df = pd.DataFrame(lista_dados[1:], columns=lista_dados[0])
-                st.dataframe(df, height=300)
+            aba = gc.worksheet("Tempo")
+            # get_all_values é mais seguro que get_all_records para evitar erros
+            dados_brutos = aba.get_all_values()
+            if len(dados_brutos) > 1:
+                df = pd.DataFrame(dados_brutos[1:], columns=dados_brutos[0])
+                st.dataframe(df, use_container_width=True, height=350)
                 
+                # Botão de Exportação
                 csv = df.to_csv(index=False).encode('utf-8')
-                st.download_button("EXPORTAR PARA EXCEL (CSV)", csv, "relatorio.csv", "text/csv")
-            else: st.warning("Planilha Vazia")
-        except: st.error("Erro ao ler aba 'Tempo'")
+                st.download_button("EXPORTAR PARA EXCEL (CSV)", csv, "relatorio_zion.csv", "text/csv")
+            else: st.info("Planilha vazia.")
+        except: st.error("Não consegui ler a aba 'Tempo'. Verifique o nome na planilha.")
 
-    if st.button("VOLTAR"):
+    if st.button("VOLTAR AO MENU"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
