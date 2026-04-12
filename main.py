@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # ==============================================================================
-# BLOCO 1: CONEXÃO BLINDADA (BUSCA INTELIGENTE)
+# BLOCO 1: CONEXÃO
 # ==============================================================================
 st.set_page_config(page_title="Zion Tecnologia", layout="centered")
 
@@ -16,17 +16,15 @@ def conectar_planilha():
         b64_content = st.secrets["gcp_service_account"]["content"]
         json_info = json.loads(base64.b64decode(b64_content).decode('utf-8'))
         json_info["private_key"] = json_info["private_key"].replace("\\n", "\n")
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(json_info, scopes=scopes)
+        creds = Credentials.from_service_account_info(json_info, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
         client = gspread.authorize(creds)
+        # Tenta abrir "Zion" e a aba "Tempo"
         planilha = client.open("Zion")
-        
-        # Tenta achar a aba 'Tempo', se não der, pega a primeira da lista
         try:
             return planilha.worksheet("Tempo")
         except:
             return planilha.get_worksheet(0)
-    except Exception as e:
+    except:
         return None
 
 if 'pagina' not in st.session_state:
@@ -47,28 +45,13 @@ def aplicar_visual_celular(cor_fundo_interna):
             padding: 25px 15px;
             margin-top: 10px;
         }}
-        .titulo-amarelo {{
-            color: #FFFF00 !important;
-            text-align: center;
-            font-size: 26px;
-            font-weight: 900;
-            margin-bottom: 20px;
-        }}
-        div.stButton > button {{
-            background-color: #FF8C00;
-            color: white;
-            border-radius: 12px;
-            width: 100%;
-            height: 50px;
-            font-weight: bold;
-            margin-bottom: 8px;
-            border: none;
-        }}
+        .titulo-amarelo {{ color: #FFFF00 !important; text-align: center; font-size: 26px; font-weight: 900; }}
+        div.stButton > button {{ background-color: #FF8C00; color: white; border-radius: 12px; width: 100%; height: 50px; font-weight: bold; border: none; }}
         </style>
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# BLOCO 3: MENU E LOGÍSTICA
+# BLOCO 3: TELAS
 # ==============================================================================
 if st.session_state['pagina'] == 'inicio':
     aplicar_visual_celular("#2D2D2D") 
@@ -85,17 +68,18 @@ elif st.session_state['pagina'] == 'menu':
     with c1:
         if st.button("Logistica Patio / ETC"): st.session_state['pagina'] = 'logistica'; st.rerun()
         if st.button("Tombador"): pass
-        if st.button("Balança"): pass
     with c2:
         if st.button("Classificação"): pass
-        if st.button("Tabela Ent/Said"): pass
-        if st.button("Dashboard"): pass
+        if st.button("Balança"): pass
     st.write("---")
-    if st.button("VISUALIZAR LANÇAMENTOS"): st.session_state['pagina'] = 'visualizar'; st.rerun()
+    if st.button("VISUALIZAR LANÇAMENTOS"):
+        st.session_state['pagina'] = 'visualizar'
+        st.rerun()
 
 elif st.session_state['pagina'] == 'logistica':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LOGÍSTICA PÁTIO</h1>', unsafe_allow_html=True)
+    # clear_on_submit=True limpa os campos após salvar
     with st.form("logistica_form", clear_on_submit=True):
         placa = st.text_input("PLACA")
         tipo = st.selectbox("TIPO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
@@ -104,22 +88,20 @@ elif st.session_state['pagina'] == 'logistica':
         chegada = st.text_input("CHEGADA ETC", value="00:00:00")
         if st.form_submit_button("SALVAR REGISTRO"):
             try:
-                # Cálculo do tempo de viagem
-                t_saida = datetime.strptime(saida, '%H:%M:%S')
-                t_chegada = datetime.strptime(chegada, '%H:%M:%S')
-                tt_viagem = str(t_chegada - t_saida)
+                # Cálculo do tempo e formatação da data
+                fmt = '%H:%M:%S'
+                tt_viagem = str(datetime.strptime(chegada, fmt) - datetime.strptime(saida, fmt))
                 data_br = data_sel.strftime("%d/%m/%Y")
                 aba = conectar_planilha()
                 if aba:
-                    # Ordem das colunas da sua planilha: PLACA, CAMINHÃO, DATA, SAÍDA, CHEGADA, TT VIAGEM
                     aba.append_row([placa, tipo, data_br, saida, chegada, tt_viagem])
                     st.success("Salvo com sucesso!")
                 else: st.error("Erro na conexão!")
-            except: st.error("Use o formato 00:00:00")
+            except: st.error("Erro nos dados!")
     if st.button("VOLTAR"): st.session_state['pagina'] = 'menu'; st.rerun()
 
 # ==============================================================================
-# BLOCO 4: VISUALIZAR (RESOLVENDO O ERRO DE BUSCA)
+# BLOCO 4: VISUALIZAR (COM FILTRO PARA NÃO DAR ERRO)
 # ==============================================================================
 elif st.session_state['pagina'] == 'visualizar':
     aplicar_visual_celular("#002366")
@@ -127,17 +109,24 @@ elif st.session_state['pagina'] == 'visualizar':
     aba = conectar_planilha()
     if aba:
         try:
-            # Pega os valores brutos para não dar erro se houver células vazias
-            dados = aba.get_all_values()
-            if len(dados) > 1:
-                # Criar o DataFrame com a primeira linha como cabeçalho
-                df = pd.DataFrame(dados[1:], columns=dados[0])
-                # Remove linhas totalmente vazias que o gspread às vezes puxa
-                df = df.replace('', pd.NA).dropna(how='all')
-                st.dataframe(df, use_container_width=True)
+            # Pega tudo e transforma em tabela
+            dados_brutos = aba.get_all_values()
+            if len(dados_brutos) > 1:
+                df = pd.DataFrame(dados_brutos[1:], columns=dados_brutos[0])
+                
+                # SOLUÇÃO PARA O ERRO: Remove linhas onde a PLACA está vazia ou é inválida
+                df = df[df['PLACA'].str.strip() != ""] 
+                
+                st.dataframe(df, use_container_width=True, height=400)
+                
+                # Botão de Exportação
                 csv = df.to_csv(index=False).encode('utf-8')
-                st.download_button("BAIXAR CSV", csv, "Zion.csv", "text/csv")
-            else: st.info("Planilha vazia.")
-        except: st.error("Erro ao processar dados da planilha.")
-    else: st.error("Planilha 'Zion' não encontrada!")
-    if st.button("VOLTAR"): st.session_state['pagina'] = 'menu'; st.rerun()
+                st.download_button("EXPORTAR PARA PLANILHA", csv, "Zion_Patio.csv", "text/csv")
+            else:
+                st.info("Planilha vazia.")
+        except Exception as e:
+            st.error("Erro ao processar dados. Limpe as linhas vazias da sua planilha!")
+    
+    if st.button("VOLTAR"):
+        st.session_state['pagina'] = 'menu'
+        st.rerun()
