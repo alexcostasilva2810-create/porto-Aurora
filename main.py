@@ -1,30 +1,55 @@
 import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
-import base64
-import json
 
-def conectar_zion_final():
-    try:
-        # Pega a string única dos Secrets
-        b64_content = st.secrets["gcp_service_account"]["content"]
-        
-        # Converte de volta para JSON
-        json_info = json.loads(base64.b64decode(b64_content).decode('utf-8'))
-        
-        # Corrige as quebras de linha que o JSON as vezes bagunça
-        json_info["private_key"] = json_info["private_key"].replace("\\n", "\n")
-        
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(json_info, scopes=scopes)
-        client = gspread.authorize(creds)
-        
-        return client.open("Zion").worksheet("Tempo")
-    except Exception as e:
-        st.error(f"Erro: {e}")
-        return None
+# Configuração da página (deve ser a primeira linha)
+st.set_page_config(page_title="Sistema Zion", layout="wide")
 
-if st.button("CONECTAR AGORA"):
-    planilha = conectar_zion_final()
-    if planilha:
-        st.success("✅ FINALMENTE CONECTADO!")
+# 1. ESTILIZAÇÃO (Cor Prata e Ajustes)
+st.markdown(
+    """
+    <style>
+    /* Fundo da aplicação em Prata */
+    .stApp {
+        background-color: #C0C0C0;
+    }
+    
+    /* Container para empurrar o conteúdo para o fundo da tela */
+    .footer-container {
+        position: fixed;
+        left: 20px;
+        bottom: 30px;
+    }
+    
+    /* Estilo customizado para o botão se quiser algo mais específico */
+    div.stButton > button {
+        background-color: #4A4A4A;
+        color: white;
+        border-radius: 5px;
+        padding: 10px 25px;
+    }
+    </style>
+    """,
+    unsafe_allow_stdio=True,
+    unsafe_allow_html=True
+)
+
+# 2. CONTEÚDO DA TELA
+st.title("SISTEMA ZION")
+st.subheader("Bem-vindo ao painel de controle.")
+
+# 3. BOTÃO NO CANTO INFERIOR ESQUERDO
+# Usamos um container fixado via CSS ou apenas o posicionamento natural com spacers
+with st.container():
+    # Cria um espaço grande para empurrar o botão para baixo
+    for _ in range(20): 
+        st.write("")
+        
+    col1, col2, col3 = st.columns([1, 2, 2])
+    
+    with col1:
+        if st.button("ACESSO"):
+            st.session_state['logado'] = True
+            st.rerun()
+
+# Feedback visual simples
+if st.session_state.get('logado'):
+    st.success("Acesso liberado!")
