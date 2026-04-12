@@ -2,28 +2,31 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 
-def conectar_definitivo():
+def conectar_zion_real():
     try:
-        # 1. Carrega os dados do Secret
-        info = dict(st.secrets["gcp_service_account"])
+        # Puxa o dicionário formatado do TOML
+        cred_dict = dict(st.secrets["gcp_service_account"])
         
-        # 2. Limpeza da chave: remove qualquer \n em texto e garante quebras reais
-        # Isso evita o erro de PEM file que apareceu nas suas telas anteriores
-        info["private_key"] = info["private_key"].replace("\\n", "\n")
+        # Corrige as quebras de linha para o formato PEM que o Google aceita
+        cred_dict["private_key"] = cred_dict["private_key"].replace("\\n", "\n")
         
-        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-        creds = Credentials.from_service_account_info(info, scopes=scopes)
+        escopos = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        
+        # Autenticação
+        creds = Credentials.from_service_account_info(cred_dict, scopes=escopos)
         client = gspread.authorize(creds)
         
-        # 3. Abre a planilha e aba
+        # Tenta abrir a planilha (Certifique-se que compartilhou com o e-mail zion-operador...)
         return client.open("Zion").worksheet("Tempo")
         
     except Exception as e:
-        st.error(f"Erro técnico: {e}")
+        st.error(f"Erro de Conexão: {e}")
         return None
 
-if st.button("CONECTAR AO SISTEMA ZION"):
-    # LEMBRETE: O e-mail da conta de serviço PRECISA estar como EDITOR na planilha Zion
-    aba = conectar_definitivo()
-    if aba:
-        st.success("✅ Conectado com sucesso!")
+if st.button("CONECTAR AGORA"):
+    planilha = conectar_zion_real()
+    if planilha:
+        st.success("✅ SISTEMA ZION ONLINE. Finalmente conectado.")
