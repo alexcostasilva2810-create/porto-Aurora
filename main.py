@@ -2,33 +2,28 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 
-def iniciar_sistema_zion():
+def conectar_definitivo():
     try:
-        # Carrega as configurações dos Secrets
-        credenciais_dict = dict(st.secrets["gcp_service_account"])
+        # 1. Carrega os dados do Secret
+        info = dict(st.secrets["gcp_service_account"])
         
-        # Garante que as quebras de linha da chave privada sejam interpretadas corretamente
-        credenciais_dict["private_key"] = credenciais_dict["private_key"].replace("\\n", "\n")
+        # 2. Limpeza da chave: remove qualquer \n em texto e garante quebras reais
+        # Isso evita o erro de PEM file que apareceu nas suas telas anteriores
+        info["private_key"] = info["private_key"].replace("\\n", "\n")
         
-        # Define os escopos necessários
-        escopos = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]
-        
-        # Cria as credenciais e autoriza o cliente
-        creds = Credentials.from_service_account_info(credenciais_dict, scopes=escopos)
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(info, scopes=scopes)
         client = gspread.authorize(creds)
         
-        # Tenta abrir a planilha e a aba
+        # 3. Abre a planilha e aba
         return client.open("Zion").worksheet("Tempo")
         
     except Exception as e:
-        st.error(f"Erro ao conectar: {e}")
+        st.error(f"Erro técnico: {e}")
         return None
 
-# Interface
 if st.button("CONECTAR AO SISTEMA ZION"):
-    aba_tempo = iniciar_sistema_zion()
-    if aba_tempo:
-        st.success("✅ Conexão estabelecida! O sistema já pode ler e gravar dados.")
+    # LEMBRETE: O e-mail da conta de serviço PRECISA estar como EDITOR na planilha Zion
+    aba = conectar_definitivo()
+    if aba:
+        st.success("✅ Conectado com sucesso!")
