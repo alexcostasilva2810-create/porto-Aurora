@@ -88,56 +88,47 @@ if st.session_state['pagina'] == 'inicio':
             st.rerun()
 
 # ==========================================
-# BLOCO 4: TELA DE MENU (AZUL ROYAL) - ÍCONES CENTRALIZADOS
+# BLOCO 4: TELA DE MENU (AZUL ROYAL) - FINAL
 # ==========================================
 elif st.session_state['pagina'] == 'menu':
-    # Reaplica o estilo para garantir o fundo Azul Royal
-    aplicar_estilo("#002366")
+    aplicar_estilo("#002366") # Mantém fundo Azul Royal
     
-    st.markdown('<h1 class="titulo-menu">MENU</h1>', unsafe_allow_html=True)
+    # Título MENU na cor AMARELA conforme solicitado
+    st.markdown('<h1 style="color: #FFFF00; text-align: center; font-size: 60px; font-weight: bold; margin-bottom: 50px;">MENU</h1>', unsafe_allow_html=True)
     
-    # Grid de botões (3 colunas)
+    # Estrutura de Colunas
     col1, col2, col3 = st.columns(3)
     
-    # Lista organizada: (Nome do Botão, Ícone, Legenda, Coluna)
+    # Lista de botões, ícones e descrições
     botoes = [
         ("Logistica Patio / ETC", "🚚", "Gestão de Pátio", col1),
-        ("Classificação", "📋", "Qualidade", col2),
-        ("Balança", "⚖️", "Pesagem", col3),
-        ("Tombador", "🏗️", "Descarga", col1),
-        ("Tabela Ent/Said", "📊", "Registros", col2),
-        ("Dashboard", "📈", "Indicadores", col3)
+        ("Classificação", "📋", "Controle de Qualidade", col2),
+        ("Balança", "⚖️", "Pesagem Oficial", col3),
+        ("Tombador", "🏗️", "Descarga Hidráulica", col1),
+        ("Tabela Ent/Said", "📊", "Registros Gerais", col2),
+        ("Dashboard", "📈", "Indicadores Zion", col3)
     ]
 
     for nome, icone, desc, coluna in botoes:
         with coluna:
-            # Renderiza o botão
-            st.button(nome)
+            # 1. O Botão Laranja 3D
+            if st.button(nome):
+                st.session_state['modulo_ativo'] = nome
+                # Aqui futuramente chamaremos a função de cada módulo
             
-            # Renderiza o ícone e a legenda CENTRALIZADOS via HTML/CSS
+            # 2. O Ícone e Legenda (Ajustados conforme imagem 81f586.png)
             st.markdown(f"""
-                <div style="
-                    display: flex; 
-                    flex-direction: column; 
-                    align-items: center; 
-                    justify-content: center; 
-                    width: 100%; 
-                    margin-top: 10px; 
-                    margin-bottom: 30px;
-                    color: white;
-                ">
-                    <span style="font-size: 45px;">{icone}</span>
-                    <span style="font-size: 14px; opacity: 0.8; font-weight: bold;">{desc}</span>
+                <div style="text-align: center; margin-top: -5px; margin-bottom: 40px; color: white;">
+                    <div style="font-size: 45px; line-height: 1;">{icone}</div>
+                    <div style="font-size: 14px; font-weight: bold; margin-top: 5px;">{desc}</div>
                 </div>
             """, unsafe_allow_html=True)
 
-    # --- BOTÃO VOLTAR CENTRALIZADO NO RODAPÉ ---
-    st.markdown("<br><br>", unsafe_allow_html=True)
+    # --- RODAPÉ: BOTÃO VOLTAR CENTRALIZADO ---
     st.write("---")
-    
-    # Colunas para centralizar o botão de voltar
-    _, col_central, _ = st.columns([2, 1, 2])
-    with col_central:
+    _, col_v, _ = st.columns([2, 1, 2])
+    with col_v:
+        # Usando CSS inline para garantir que o botão de voltar seja cinza
         st.markdown('<div class="btn-voltar-estilo">', unsafe_allow_html=True)
         if st.button("VOLTAR PARA LOGIN"):
             st.session_state['pagina'] = 'inicio'
