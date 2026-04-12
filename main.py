@@ -7,7 +7,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # ==============================================================================
-# BLOCO 1: CONFIGURAÇÕES E CONEXÃO SEGURA
+# BLOCO 1: CONEXÃO COM A PLANILHA ZION
 # ==============================================================================
 st.set_page_config(page_title="Zion Tecnologia", layout="centered")
 
@@ -26,7 +26,7 @@ if 'pagina' not in st.session_state:
     st.session_state['pagina'] = 'inicio'
 
 # ==============================================================================
-# BLOCO 2: ESTILO MOBILE (MÁSCARA E BOTÕES)
+# BLOCO 2: ENGINE DE ESTILO MOBILE
 # ==============================================================================
 def aplicar_visual_celular(cor_fundo_interna):
     st.markdown(f"""
@@ -42,19 +42,12 @@ def aplicar_visual_celular(cor_fundo_interna):
             margin-top: 10px;
             box-shadow: 0px 0px 25px rgba(0,0,0,0.9);
         }}
-        .texto-branco {{
-            color: #FFFFFF !important;
-            text-align: center;
-            font-family: 'Arial', sans-serif;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px #000;
-        }}
         .titulo-amarelo {{
             color: #FFFF00 !important;
             text-align: center;
             font-size: 26px;
             font-weight: 900;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }}
         div.stButton > button {{
             background-color: #FF8C00;
@@ -67,38 +60,35 @@ def aplicar_visual_celular(cor_fundo_interna):
             margin-bottom: 8px;
             border: none;
         }}
-        /* Estilo para tabelas nítidas */
-        .stDataFrame {{ background-color: white; border-radius: 10px; }}
         </style>
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# BLOCO 3: TELA DE LOGIN
+# BLOCO 3: LOGIN
 # ==============================================================================
 if st.session_state['pagina'] == 'inicio':
     aplicar_visual_celular("#2D2D2D") 
-    st.markdown('<div class="texto-branco"><h1 style="font-size: 32px;">Seja Bem Vindo</h1><p>ao</p><h1 style="font-size: 32px;">Zion Tecnologia</h1><br><h2 style="color: #FFD700 !important;">Transdourado</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div style="color:white; text-align:center;"><h1>Bem Vindo</h1><br><h1>Zion Tecnologia</h1><br><h2 style="color:#FFD700;">Transdourado</h2></div>', unsafe_allow_html=True)
     for _ in range(8): st.write("")
     if st.button("ACESSO"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
 
 # ==============================================================================
-# BLOCO 4: MENU PRINCIPAL (TODOS OS BOTÕES)
+# BLOCO 4: MENU (CONFORME DESENHO DO USUÁRIO)
 # ==============================================================================
 elif st.session_state['pagina'] == 'menu':
     aplicar_visual_celular("#002366") 
     st.markdown('<h1 class="titulo-amarelo">MENU</h1>', unsafe_allow_html=True)
     
-    # Organização em duas colunas para caber no celular
-    c1, c2 = st.columns(2)
-    with c1:
+    col1, col2 = st.columns(2)
+    with col1:
         if st.button("Logistica Patio / ETC"):
             st.session_state['pagina'] = 'logistica'
             st.rerun()
         if st.button("Tombador"): pass
         if st.button("Balança"): pass
-    with c2:
+    with col2:
         if st.button("Classificação"): pass
         if st.button("Tabela Ent/Said"): pass
         if st.button("Dashboard"): pass
@@ -113,46 +103,39 @@ elif st.session_state['pagina'] == 'menu':
         st.rerun()
 
 # ==============================================================================
-# BLOCO 5: TELA LOGÍSTICA (SALVAMENTO E LIMPEZA)
+# BLOCO 5: LOGÍSTICA (SALVAR, LIMPAR E DATA BR)
 # ==============================================================================
 elif st.session_state['pagina'] == 'logistica':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LOGÍSTICA PÁTIO</h1>', unsafe_allow_html=True)
     
-    # clear_on_submit limpa os campos após salvar
     with st.form("logistica_form", clear_on_submit=True):
         placa = st.text_input("PLACA", placeholder="ABC-1234")
-        caminhao = st.selectbox("TIPO DE CAMINHÃO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
+        tipo = st.selectbox("TIPO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
         data_sel = st.date_input("DATA", datetime.now(), format="DD/MM/YYYY")
-        saida = st.text_input("SAÍDA PÁTIO (HH:MM:SS)", value="00:00:00")
-        chegada = st.text_input("CHEGADA ETC (HH:MM:SS)", value="00:00:00")
+        saida = st.text_input("SAÍDA PÁTIO", value="00:00:00")
+        chegada = st.text_input("CHEGADA ETC", value="00:00:00")
         
-        btn_salvar = st.form_submit_button("SALVAR REGISTRO")
-
-        if btn_salvar:
+        if st.form_submit_button("SALVAR REGISTRO"):
             try:
-                # Cálculo do TT. VIAGEM
                 fmt = '%H:%M:%S'
-                t1 = datetime.strptime(saida, fmt)
-                t2 = datetime.strptime(chegada, fmt)
-                tt_viagem = str(t2 - t1)
-                data_br = data_sel.strftime("%d/%m/%Y") # Salva como 12/04/2026
+                tt_viagem = str(datetime.strptime(chegada, fmt) - datetime.strptime(saida, fmt))
+                data_br = data_sel.strftime("%d/%m/%Y") # Fix: Data no formato BR
                 
                 gc = conectar_planilha()
                 if gc:
                     aba = gc.worksheet("Tempo")
-                    # Ordem exata: PLACA, CAMINHÃO, DATA, SAÍDA, CHEGADA, TT.VIAGEM
-                    aba.append_row([placa, caminhao, data_br, saida, chegada, tt_viagem])
-                    st.success(f"Salvo! Viagem: {tt_viagem}")
-                else: st.error("Erro na conexão!")
-            except: st.error("Erro nos dados! Use 00:00:00")
+                    aba.append_row([placa, tipo, data_br, saida, chegada, tt_viagem])
+                    st.success(f"Salvo! TT Viagem: {tt_viagem}")
+                else: st.error("Falha na conexão")
+            except: st.error("Erro nos dados")
 
     if st.button("VOLTAR AO MENU"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
 
 # ==============================================================================
-# BLOCO 6: VISUALIZAR E EXPORTAR (CORRIGIDO)
+# BLOCO 6: VISUALIZAR LANÇAMENTOS (SEM ERRO DE LEITURA)
 # ==============================================================================
 elif st.session_state['pagina'] == 'visualizar':
     aplicar_visual_celular("#002366")
@@ -161,18 +144,17 @@ elif st.session_state['pagina'] == 'visualizar':
     gc = conectar_planilha()
     if gc:
         try:
+            # Fix: Usar get_all_values para evitar erros de cabeçalho
             aba = gc.worksheet("Tempo")
-            # get_all_values é mais seguro que get_all_records para evitar erros
-            dados_brutos = aba.get_all_values()
-            if len(dados_brutos) > 1:
-                df = pd.DataFrame(dados_brutos[1:], columns=dados_brutos[0])
+            dados = aba.get_all_values()
+            if len(dados) > 0:
+                df = pd.DataFrame(dados[1:], columns=dados[0])
                 st.dataframe(df, use_container_width=True, height=350)
-                
-                # Botão de Exportação
                 csv = df.to_csv(index=False).encode('utf-8')
-                st.download_button("EXPORTAR PARA EXCEL (CSV)", csv, "relatorio_zion.csv", "text/csv")
-            else: st.info("Planilha vazia.")
-        except: st.error("Não consegui ler a aba 'Tempo'. Verifique o nome na planilha.")
+                st.download_button("EXPORTAR PLANILHA", csv, " Zion_Logistica.csv", "text/csv")
+            else: st.info("Sem lançamentos.")
+        except Exception as e:
+            st.error(f"Erro na aba 'Tempo'. Verifique o nome na planilha.")
 
     if st.button("VOLTAR AO MENU"):
         st.session_state['pagina'] = 'menu'
