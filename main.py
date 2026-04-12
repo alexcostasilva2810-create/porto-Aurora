@@ -51,7 +51,7 @@ def aplicar_visual_celular(cor_fundo_interna):
         .titulo-amarelo {{
             color: #FFFF00 !important;
             text-align: center;
-            font-size: 30px;
+            font-size: 28px;
             font-weight: 900;
             text-shadow: 2px 2px 2px #000;
             margin-bottom: 20px;
@@ -108,7 +108,7 @@ elif st.session_state['pagina'] == 'menu':
         st.rerun()
 
 # ==============================================================================
-# BLOCO 5: TELA LOGÍSTICA PÁTIO / ETC (CORRIGIDA)
+# BLOCO 5: TELA LOGÍSTICA PÁTIO / ETC (CORREÇÃO DE COLUNAS E CÁLCULO)
 # ==============================================================================
 elif st.session_state['pagina'] == 'logistica':
     aplicar_visual_celular("#002366")
@@ -116,35 +116,48 @@ elif st.session_state['pagina'] == 'logistica':
     
     with st.form("form_logistica", clear_on_submit=True):
         st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">PLACA</p>', unsafe_allow_html=True)
-        placa = st.text_input("placa_input", placeholder="Placa do Veículo", label_visibility="collapsed")
+        placa = st.text_input("placa_input", placeholder="JVV-7606", label_visibility="collapsed")
         
         st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">TIPO DE CAMINHÃO</p>', unsafe_allow_html=True)
         tipo_camiao = st.selectbox("tipo_input", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"], label_visibility="collapsed")
         
         st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">DATA</p>', unsafe_allow_html=True)
-        data_reg = st.date_input("data_input", datetime.now(), format="DD/MM/YYYY", label_visibility="collapsed")
+        data_input = st.date_input("data_input", datetime.now(), format="DD/MM/YYYY", label_visibility="collapsed")
         
-        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">SAÍDA DO PÁTIO (00:00:00)</p>', unsafe_allow_html=True)
-        # Adicionei a chave 'key' única para evitar o erro de duplicidade
-        saida_patio = st.text_input("saida_input", value="00:00:00", key="saida_key", label_visibility="collapsed")
+        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">SAÍDA DO PÁTIO (HH:MM:SS)</p>', unsafe_allow_html=True)
+        saida_patio = st.text_input("saida_input", value="08:10:00", key="saida_key", label_visibility="collapsed")
         
-        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">CHEGADA ETC (00:00:00)</p>', unsafe_allow_html=True)
-        chegada_etc = st.text_input("chegada_input", value="00:00:00", key="chegada_key", label_visibility="collapsed")
+        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">CHEGADA ETC (HH:MM:SS)</p>', unsafe_allow_html=True)
+        chegada_etc = st.text_input("chegada_input", value="10:00:00", key="chegada_key", label_visibility="collapsed")
 
-        # O botão de salvar PRECISA estar aqui dentro para o formulário funcionar
         btn_salvar = st.form_submit_button("SALVAR REGISTRO")
 
         if btn_salvar:
-            planilha = conectar_planilha()
-            if planilha:
-                try:
+            try:
+                # 1. Ajuste da Data para padrão BR
+                data_br = data_input.strftime("%d/%m/%Y")
+                
+                # 2. Cálculo do TT. VIAGEM
+                fmt = '%H:%M:%S'
+                t_saida = datetime.strptime(saida_patio, fmt)
+                t_chegada = datetime.strptime(chegada_etc, fmt)
+                delta = t_chegada - t_saida
+                tt_viagem = str(delta)
+
+                planilha = conectar_planilha()
+                if planilha:
                     aba = planilha.worksheet("Tempo")
-                    aba.append_row([str(data_reg), placa, tipo_camiao, saida_patio, chegada_etc])
-                    st.success("Salvo com sucesso!")
-                except:
-                    st.error("Erro na aba 'Tempo'!")
-            else:
-                st.error("Erro na planilha!")
+                    
+                    # 3. Ordem correta das colunas conforme sua planilha
+                    # PLACA | CAMINHÃO | DATA | SAÍDA DO PATIO | CHEGADA ETC | TT. VIAGEM
+                    nova_linha = [placa, tipo_camiao, data_br, saida_patio, chegada_etc, tt_viagem]
+                    
+                    aba.append_row(nova_linha)
+                    st.success(f"Salvo! Viagem de {tt_viagem}")
+                else:
+                    st.error("Erro na planilha!")
+            except Exception as e:
+                st.error(f"Erro nos dados: Verifique se o horário está como 00:00:00")
 
     if st.button("VOLTAR AO MENU"):
         st.session_state['pagina'] = 'menu'
