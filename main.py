@@ -7,19 +7,22 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 
 # ==============================================================================
-# BLOCO 1: CONEXÃO COM A PLANILHA ZION
+# BLOCO 1: CONEXÃO AUTOMÁTICA (PEGA A PRIMEIRA ABA DISPONÍVEL)
 # ==============================================================================
 st.set_page_config(page_title="Zion Tecnologia", layout="centered")
 
 def conectar_planilha():
     try:
         b64_content = st.secrets["gcp_service_account"]["content"]
-        json_info = json.loads(base64.b64decode(b64_content).decode('utf-8'))
+        json_info = json.loads(base64.b64decode(base64_content).decode('utf-8'))
         json_info["private_key"] = json_info["private_key"].replace("\\n", "\n")
         scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(json_info, scopes=scopes)
-        return gspread.authorize(creds).open("Zion")
-    except:
+        client = gspread.authorize(creds)
+        planilha = client.open("Zion")
+        # FIX: Pega a primeira aba independente do nome para evitar WorksheetNotFound
+        return planilha.get_worksheet(0) 
+    except Exception as e:
         return None
 
 if 'pagina' not in st.session_state:
@@ -64,53 +67,41 @@ def aplicar_visual_celular(cor_fundo_interna):
     """, unsafe_allow_html=True)
 
 # ==============================================================================
-# BLOCO 3: LOGIN
+# BLOCO 3: TELAS (LOGIN E MENU)
 # ==============================================================================
 if st.session_state['pagina'] == 'inicio':
     aplicar_visual_celular("#2D2D2D") 
-    st.markdown('<div style="color:white; text-align:center;"><h1>Bem Vindo</h1><br><h1>Zion Tecnologia</h1><br><h2 style="color:#FFD700;">Transdourado</h2></div>', unsafe_allow_html=True)
-    for _ in range(8): st.write("")
+    st.markdown('<div style="color:white; text-align:center;"><h1>Zion Tecnologia</h1><br><h2 style="color:#FFD700;">Transdourado</h2></div>', unsafe_allow_html=True)
+    for _ in range(10): st.write("")
     if st.button("ACESSO"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
 
-# ==============================================================================
-# BLOCO 4: MENU (CONFORME DESENHO DO USUÁRIO)
-# ==============================================================================
 elif st.session_state['pagina'] == 'menu':
     aplicar_visual_celular("#002366") 
     st.markdown('<h1 class="titulo-amarelo">MENU</h1>', unsafe_allow_html=True)
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Logistica Patio / ETC"):
-            st.session_state['pagina'] = 'logistica'
-            st.rerun()
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("Logistica Patio / ETC"): st.session_state['pagina'] = 'logistica'; st.rerun()
         if st.button("Tombador"): pass
         if st.button("Balança"): pass
-    with col2:
+    with c2:
         if st.button("Classificação"): pass
         if st.button("Tabela Ent/Said"): pass
         if st.button("Dashboard"): pass
-    
     st.write("---")
-    if st.button("VISUALIZAR LANÇAMENTOS"):
-        st.session_state['pagina'] = 'visualizar'
-        st.rerun()
-    
-    if st.button("VOLTAR PARA LOGIN"):
-        st.session_state['pagina'] = 'inicio'
-        st.rerun()
+    if st.button("VISUALIZAR LANÇAMENTOS"): st.session_state['pagina'] = 'visualizar'; st.rerun()
+    if st.button("SAIR"): st.session_state['pagina'] = 'inicio'; st.rerun()
 
 # ==============================================================================
-# BLOCO 5: LOGÍSTICA (SALVAR, LIMPAR E DATA BR)
+# BLOCO 4: LOGÍSTICA (SALVA NA PRIMEIRA ABA)
 # ==============================================================================
 elif st.session_state['pagina'] == 'logistica':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LOGÍSTICA PÁTIO</h1>', unsafe_allow_html=True)
     
     with st.form("logistica_form", clear_on_submit=True):
-        placa = st.text_input("PLACA", placeholder="ABC-1234")
+        placa = st.text_input("PLACA")
         tipo = st.selectbox("TIPO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
         data_sel = st.date_input("DATA", datetime.now(), format="DD/MM/YYYY")
         saida = st.text_input("SAÍDA PÁTIO", value="00:00:00")
@@ -120,42 +111,35 @@ elif st.session_state['pagina'] == 'logistica':
             try:
                 fmt = '%H:%M:%S'
                 tt_viagem = str(datetime.strptime(chegada, fmt) - datetime.strptime(saida, fmt))
-                data_br = data_sel.strftime("%d/%m/%Y") # Fix: Data no formato BR
+                data_br = data_sel.strftime("%d/%m/%Y")
                 
-                gc = conectar_planilha()
-                if gc:
-                    aba = gc.worksheet("Tempo")
+                aba = conectar_planilha()
+                if aba:
                     aba.append_row([placa, tipo, data_br, saida, chegada, tt_viagem])
-                    st.success(f"Salvo! TT Viagem: {tt_viagem}")
-                else: st.error("Falha na conexão")
-            except: st.error("Erro nos dados")
+                    st.success("Salvo com sucesso!")
+                else: st.error("Erro: Verifique se compartilhou a planilha com o e-mail do JSON.")
+            except: st.error("Use o formato 00:00:00")
 
-    if st.button("VOLTAR AO MENU"):
-        st.session_state['pagina'] = 'menu'
-        st.rerun()
+    if st.button("VOLTAR"): st.session_state['pagina'] = 'menu'; st.rerun()
 
 # ==============================================================================
-# BLOCO 6: VISUALIZAR LANÇAMENTOS (SEM ERRO DE LEITURA)
+# BLOCO 5: VISUALIZAR (BUSCA AUTOMÁTICA)
 # ==============================================================================
 elif st.session_state['pagina'] == 'visualizar':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LANÇAMENTOS</h1>', unsafe_allow_html=True)
     
-    gc = conectar_planilha()
-    if gc:
+    aba = conectar_planilha()
+    if aba:
         try:
-            # Fix: Usar get_all_values para evitar erros de cabeçalho
-            aba = gc.worksheet("Tempo")
             dados = aba.get_all_values()
             if len(dados) > 0:
                 df = pd.DataFrame(dados[1:], columns=dados[0])
-                st.dataframe(df, use_container_width=True, height=350)
+                st.dataframe(df, use_container_width=True)
                 csv = df.to_csv(index=False).encode('utf-8')
-                st.download_button("EXPORTAR PLANILHA", csv, " Zion_Logistica.csv", "text/csv")
-            else: st.info("Sem lançamentos.")
-        except Exception as e:
-            st.error(f"Erro na aba 'Tempo'. Verifique o nome na planilha.")
+                st.download_button("BAIXAR PLANILHA", csv, " Zion.csv", "text/csv")
+            else: st.info("Planilha vazia.")
+        except: st.error("Erro ao converter dados.")
+    else: st.error("Planilha não encontrada!")
 
-    if st.button("VOLTAR AO MENU"):
-        st.session_state['pagina'] = 'menu'
-        st.rerun()
+    if st.button("VOLTAR"): st.session_state['pagina'] = 'menu'; st.rerun()
