@@ -26,7 +26,7 @@ if 'pagina' not in st.session_state:
     st.session_state['pagina'] = 'inicio'
 
 # ==============================================================================
-# BLOCO 2: ENGINE DE ESTILO (MÁSCARA MOBILE)
+# BLOCO 2: ENGINE DE ESTILO (MÁSCARA MOBILE E BOTÕES)
 # ==============================================================================
 def aplicar_visual_celular(cor_fundo_interna):
     st.markdown(f"""
@@ -57,11 +57,6 @@ def aplicar_visual_celular(cor_fundo_interna):
             text-shadow: 2px 2px 2px #000;
             margin-bottom: 20px;
         }}
-        .stTextInput input, .stSelectbox select, .stDateInput input {{
-            background-color: #FFFFFF !important;
-            color: #000000 !important;
-            border-radius: 10px !important;
-        }}
         div.stButton > button {{
             background-color: #FF8C00;
             color: white;
@@ -70,7 +65,7 @@ def aplicar_visual_celular(cor_fundo_interna):
             height: 50px;
             font-weight: bold;
             box-shadow: 0px 4px 0px #B26200;
-            margin-top: 10px;
+            margin-bottom: 10px;
             border: none;
         }}
         </style>
@@ -88,62 +83,69 @@ if st.session_state['pagina'] == 'inicio':
         st.rerun()
 
 # ==============================================================================
-# BLOCO 4: TELA DE MENU
+# BLOCO 4: MENU PRINCIPAL (TODOS OS BOTÕES RECUPERADOS)
 # ==============================================================================
 elif st.session_state['pagina'] == 'menu':
     aplicar_visual_celular("#002366") 
     st.markdown('<h1 class="titulo-amarelo">MENU</h1>', unsafe_allow_html=True)
-    if st.button("Logistica Patio / ETC"):
-        st.session_state['pagina'] = 'logistica'
-        st.rerun()
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Logistica Patio / ETC"):
+            st.session_state['pagina'] = 'logistica'
+            st.rerun()
+        if st.button("Tombador"): pass
+        if st.button("Balança"): pass
+    with col2:
+        if st.button("Classificação"): pass
+        if st.button("Tabela Ent/Said"): pass
+        if st.button("Dashboard"): pass
+    
+    st.markdown("---")
     if st.button("Visualizar Lançamentos"):
         st.session_state['pagina'] = 'visualizar'
         st.rerun()
+    
     if st.button("SAIR DO SISTEMA"):
         st.session_state['pagina'] = 'inicio'
         st.rerun()
 
 # ==============================================================================
-# BLOCO 5: TELA LOGÍSTICA PÁTIO (SALVAMENTO E LIMPEZA)
+# BLOCO 5: TELA LOGÍSTICA PÁTIO (SALVAR E LIMPAR)
 # ==============================================================================
 elif st.session_state['pagina'] == 'logistica':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LOGÍSTICA PÁTIO</h1>', unsafe_allow_html=True)
     
-    # clear_on_submit=True garante que os campos limpem ao salvar
     with st.form("form_logistica", clear_on_submit=True):
         placa = st.text_input("PLACA", placeholder="JVV-7606")
-        tipo_camiao = st.selectbox("TIPO DE CAMINHÃO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
-        data_input = st.date_input("DATA", datetime.now(), format="DD/MM/YYYY")
-        saida_patio = st.text_input("SAÍDA DO PÁTIO (HH:MM:SS)", value="08:00:00")
-        chegada_etc = st.text_input("CHEGADA ETC (HH:MM:SS)", value="10:00:00")
+        tipo = st.selectbox("TIPO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
+        data_f = st.date_input("DATA", datetime.now(), format="DD/MM/YYYY")
+        saida = st.text_input("SAÍDA (HH:MM:SS)", value="00:00:00")
+        chegada = st.text_input("CHEGADA (HH:MM:SS)", value="00:00:00")
 
-        btn_salvar = st.form_submit_button("SALVAR REGISTRO")
-
-        if btn_salvar:
+        if st.form_submit_button("SALVAR REGISTRO"):
             try:
-                data_br = data_input.strftime("%d/%m/%Y") # Formato 12/04/2026
+                # Cálculo TT. VIAGEM
                 fmt = '%H:%M:%S'
-                delta = datetime.strptime(chegada_etc, fmt) - datetime.strptime(saida_patio, fmt)
-                tt_viagem = str(delta)
-
+                t_viagem = str(datetime.strptime(chegada, fmt) - datetime.strptime(saida, fmt))
+                data_br = data_f.strftime("%d/%m/%Y")
+                
                 planilha = conectar_planilha()
                 if planilha:
                     aba = planilha.worksheet("Tempo")
                     # Ordem: PLACA | CAMINHÃO | DATA | SAÍDA | CHEGADA | TT. VIAGEM
-                    aba.append_row([placa, tipo_camiao, data_br, saida_patio, chegada_etc, tt_viagem])
-                    st.success(f"Salvo! Viagem: {tt_viagem}")
-                else:
-                    st.error("Erro na planilha!")
-            except:
-                st.error("Verifique os horários!")
+                    aba.append_row([placa, tipo, data_br, saida, chegada, t_viagem])
+                    st.success("Salvo com sucesso!")
+                else: st.error("Erro na conexão!")
+            except: st.error("Erro nos dados!")
 
-    if st.button("VOLTAR AO MENU"):
+    if st.button("VOLTAR"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
 
 # ==============================================================================
-# BLOCO 6: VISUALIZAR E EXPORTAR
+# BLOCO 6: VISUALIZAR E EXPORTAR (CORRIGIDO)
 # ==============================================================================
 elif st.session_state['pagina'] == 'visualizar':
     aplicar_visual_celular("#002366")
@@ -151,25 +153,19 @@ elif st.session_state['pagina'] == 'visualizar':
     
     planilha = conectar_planilha()
     if planilha:
-        aba = planilha.worksheet("Tempo")
-        dados = aba.get_all_records()
-        df = pd.DataFrame(dados)
-        
-        if not df.empty:
-            # Mostra a tabela dentro da máscara
-            st.dataframe(df, height=300)
-            
-            # Exportação para CSV (Excel lê direto)
-            csv = df.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                label="EXPORTAR PARA PLANILHA (CSV)",
-                data=csv,
-                file_name=f'zion_logistica_{datetime.now().strftime("%d_%m_%Y")}.csv',
-                mime='text/csv',
-            )
-        else:
-            st.warning("Nenhum dado encontrado.")
+        try:
+            aba = planilha.worksheet("Tempo")
+            # Usando get_all_values para evitar erro de cabeçalho
+            lista_dados = aba.get_all_values()
+            if len(lista_dados) > 1:
+                df = pd.DataFrame(lista_dados[1:], columns=lista_dados[0])
+                st.dataframe(df, height=300)
+                
+                csv = df.to_csv(index=False).encode('utf-8')
+                st.download_button("EXPORTAR PARA EXCEL (CSV)", csv, "relatorio.csv", "text/csv")
+            else: st.warning("Planilha Vazia")
+        except: st.error("Erro ao ler aba 'Tempo'")
 
-    if st.button("VOLTAR AO MENU"):
+    if st.button("VOLTAR"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
