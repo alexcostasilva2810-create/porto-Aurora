@@ -3,41 +3,51 @@ import base64
 import json
 
 # ==========================================
-# BLOCO 1: MÁSCARA DE CELULAR (CSS)
+# BLOCO 1: MOLDURA SMARTPHONE E ESTILO NITIDEZ
 # ==========================================
 st.set_page_config(page_title="Zion Mobile", layout="centered")
 
-def aplicar_estilo_mobile(cor_fundo):
+def aplicar_visual_celular(cor_fundo_interna):
     st.markdown(f"""
         <style>
-        /* Simula a tela do celular no computador */
-        .main .block-container {{
-            max-width: 400px;
-            padding-top: 2rem;
-            padding-bottom: 2rem;
-            background-color: {cor_fundo};
-            border-radius: 30px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            margin-top: 20px;
-            min-height: 85vh;
-        }}
-        
-        /* Ajuste do fundo da página externa */
+        /* Fundo externo escuro para destacar o celular */
         .stApp {{
-            background-color: #262730; 
+            background-color: #121212;
         }}
 
-        /* Título Amarelo */
-        .titulo-amarelo {{
-            color: yellow;
+        /* Container que simula o corpo do celular */
+        .main .block-container {{
+            max-width: 380px;
+            min-height: 800px;
+            background-color: {cor_fundo_interna};
+            border: 12px solid #333; /* Moldura do celular */
+            border-radius: 45px;
+            padding: 40px 20px;
+            margin-top: 20px;
+            box-shadow: 0px 0px 30px rgba(0,0,0,0.8);
+            position: relative;
+        }}
+
+        /* Texto com nitidez máxima (Cor sólida e sombra leve) */
+        .texto-nitido {{
+            color: #FFFFFF !important;
             text-align: center;
-            font-family: sans-serif;
-            font-weight: bold;
-            font-size: 32px;
-            margin-bottom: 30px;
+            font-family: 'Helvetica', sans-serif;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            line-height: 1.2;
         }}
 
-        /* Botões Laranja 3D Estilo Mobile */
+        /* Título Amarelo Vibrante */
+        .titulo-menu {{
+            color: #FFFF00 !important;
+            text-align: center;
+            font-size: 45px;
+            font-weight: 900;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 0px #000;
+        }}
+
+        /* Botões Laranja 3D */
         div.stButton > button {{
             background-color: #FF8C00;
             color: white;
@@ -45,63 +55,52 @@ def aplicar_estilo_mobile(cor_fundo):
             border-radius: 15px;
             border: none;
             width: 100%;
-            height: 60px;
-            font-size: 16px;
+            height: 65px;
+            font-size: 18px;
             box-shadow: 0px 6px 0px #CC7000;
-            margin-bottom: 15px; /* Espaço vertical entre botões */
+            margin-bottom: 25px; /* Distância de 3cm visual */
             transition: all 0.1s ease;
         }}
         div.stButton > button:active {{
             box-shadow: 0px 2px 0px #CC7000;
             transform: translateY(4px);
         }}
-        
-        /* Botão Voltar Cinza no fundo */
-        .btn-voltar-mobile button {{
-            background-color: #4A4A4A !important;
-            box-shadow: 0px 4px 0px #222 !important;
-            height: 45px !important;
-            margin-top: 40px !important;
-        }}
         </style>
     """, unsafe_allow_html=True)
 
-# Controle de Navegação
+# Inicializa navegação
 if 'pagina' not in st.session_state:
     st.session_state['pagina'] = 'inicio'
 
 # ==========================================
-# BLOCO 2: TELA INICIAL (MÁSCARA CINZA)
+# BLOCO 2: TELA INICIAL (MOLDURA CINZA)
 # ==========================================
 if st.session_state['pagina'] == 'inicio':
-    aplicar_estilo_mobile("#C0C0C0")
+    aplicar_visual_celular("#C0C0C0") # Cinza Prata
     
-    st.markdown("""
-        <div style="text-align: center; color: #333;">
-            <h1 style="font-size: 35px; margin-bottom:0;">Seja Bem Vindo</h1>
-            <p style="font-size: 20px;">ao</p>
-            <h1 style="font-size: 35px;">Zion Tecnologia</h1>
-            <br><br><br>
-            <h3 style="font-size: 22px;">Transdourado</h3>
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="texto-nitido">', unsafe_allow_html=True)
+    st.markdown('<h1 style="font-size: 40px; color: #1a1a1a;">Seja Bem Vindo</h1>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size: 25px; color: #333;">ao</p>', unsafe_allow_html=True)
+    st.markdown('<h1 style="font-size: 40px; color: #1a1a1a;">Zion Tecnologia</h1>', unsafe_allow_html=True)
+    st.markdown('<br><br><br>', unsafe_allow_html=True)
+    st.markdown('<h2 style="font-size: 28px; color: #1a1a1a;">Transdourado</h2>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # Espaçamento para o botão de acesso no final
-    for _ in range(8): st.write("")
+    for _ in range(5): st.write("")
     
     if st.button("ACESSO"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
 
 # ==========================================
-# BLOCO 3: TELA DE MENU (MÁSCARA AZUL ROYAL)
+# BLOCO 3: TELA DE MENU (MOLDURA AZUL ROYAL)
 # ==========================================
 elif st.session_state['pagina'] == 'menu':
-    aplicar_estilo_mobile("#002366")
+    aplicar_visual_celular("#002366") # Azul Royal
     
-    st.markdown('<h1 class="titulo-amarelo">MENU</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="titulo-menu">MENU</h1>', unsafe_allow_html=True)
     
-    # No mobile, os botões ficam em uma única coluna centralizada
+    # Botões empilhados para Mobile
     if st.button("Logistica Patio / ETC"): pass
     if st.button("Classificação"): pass
     if st.button("Balança"): pass
@@ -109,9 +108,8 @@ elif st.session_state['pagina'] == 'menu':
     if st.button("Tabela Ent/Said"): pass
     if st.button("Dashboard"): pass
 
-    # Botão de Voltar centralizado no final
-    st.markdown('<div class="btn-voltar-mobile">', unsafe_allow_html=True)
+    # Botão de Voltar centralizado no pé do celular
+    st.markdown('<br>', unsafe_allow_html=True)
     if st.button("VOLTAR PARA LOGIN"):
         st.session_state['pagina'] = 'inicio'
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
