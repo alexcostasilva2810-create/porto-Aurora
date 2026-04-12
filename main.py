@@ -1,35 +1,37 @@
 import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
+import pandas as pd
 
-st.title("Validação Zion - Ajuste Final")
+st.set_page_config(page_title="Zion Portuário", layout="wide")
 
-def limpar_e_conectar():
-    # Puxa o que estiver nos Secrets
-    creds_dict = dict(st.secrets["gcp_service_account"])
-    
-    # Limpeza manual da chave para evitar o erro InvalidByte
-    # Isso remove aspas extras que o Streamlit às vezes coloca sozinho
-    raw_key = creds_dict["private_key"]
-    clean_key = raw_key.strip().replace("\\n", "\n")
-    
-    # Se a chave vier com aspas no início/fim, a gente corta fora
-    if clean_key.startswith('"') and clean_key.endswith('"'):
-        clean_key = clean_key[1:-1]
+def conectar_google():
+    try:
+        # Puxa o dicionário dos secrets
+        creds_dict = dict(st.secrets["gcp_service_account"])
         
-    creds_dict["private_key"] = clean_key
-    
-    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    return gspread.authorize(creds).open("Zion").worksheet("Tempo")
+        # LIMPEZA CRÍTICA: Corrige as quebras de linha da chave privada
+        # Isso remove o erro de "Invalid Byte"
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+        
+        scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+        client = gspread.authorize(creds)
+        
+        # Abre a planilha 'Zion' na aba 'Tempo' (ajuste o nome se for outro)
+        return client.open("Zion").worksheet("Tempo")
+    except Exception as e:
+        st.error(f"Erro de Conexão: {e}")
+        return None
 
-try:
-    if "gcp_service_account" in st.secrets:
-        sheet = limpar_e_conectar()
-        st.success("✅ AGORA FOI! Conexão estabelecida sem erros de chave.")
-        st.write("Aba conectada:", sheet.title)
-    else:
-        st.error("Secrets não configurados no painel.")
-except Exception as e:
-    st.error(f"Erro detectado: {e}")
-    st.info("Se o erro 'InvalidByte' continuar, verifique se no painel Secrets a chave começa exatamente com -----BEGIN PRIVATE KEY-----")
+# --- TELA DE TESTE ---
+st.title("SISTEMA ZION - STATUS")
+
+if st.button("TESTAR CONEXÃO AGORA"):
+    sheet = conectar_google()
+    if sheet:
+        st.success("✅ CONEXÃO ESTABELECIDA! O Google aceitou a chave.")
+        # Mostra as últimas 5 linhas da planilha para provar que está lendo
+        dados = pd.DataFrame(sheet.get_all_records())
+        st.write("Dados atuais na planilha:")
+        st.dataframe(dados.tail(5))
