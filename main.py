@@ -88,41 +88,58 @@ if st.session_state['pagina'] == 'inicio':
             st.rerun()
 
 # ==========================================
-# BLOCO 4: TELA DE MENU (AZUL ROYAL)
+# BLOCO 4: TELA DE MENU (AZUL ROYAL) - ÍCONES CENTRALIZADOS
 # ==========================================
 elif st.session_state['pagina'] == 'menu':
-    aplicar_estilo("#002366") # Azul Royal
+    # Reaplica o estilo para garantir o fundo Azul Royal
+    aplicar_estilo("#002366")
     
     st.markdown('<h1 class="titulo-menu">MENU</h1>', unsafe_allow_html=True)
     
-    # Grid de botões com ícones abaixo
+    # Grid de botões (3 colunas)
     col1, col2, col3 = st.columns(3)
     
-    with col1:
-        if st.button("Logistica Patio / ETC"): pass
-        st.markdown('<div class="icon-box">🚚<br><span class="label-icon">Gestão de Pátio</span></div>', unsafe_allow_html=True)
-        
-        if st.button("Tombador"): pass
-        st.markdown('<div class="icon-box">🏗️<br><span class="label-icon">Descarga Hidráulica</span></div>', unsafe_allow_html=True)
+    # Lista organizada: (Nome do Botão, Ícone, Legenda, Coluna)
+    botoes = [
+        ("Logistica Patio / ETC", "🚚", "Gestão de Pátio", col1),
+        ("Classificação", "📋", "Qualidade", col2),
+        ("Balança", "⚖️", "Pesagem", col3),
+        ("Tombador", "🏗️", "Descarga", col1),
+        ("Tabela Ent/Said", "📊", "Registros", col2),
+        ("Dashboard", "📈", "Indicadores", col3)
+    ]
 
-    with col2:
-        if st.button("Classificação"): pass
-        st.markdown('<div class="icon-box">📋<br><span class="label-icon">Controle de Qualidade</span></div>', unsafe_allow_html=True)
-        
-        if st.button("Tabela Ent/Said"): pass
-        st.markdown('<div class="icon-box">📊<br><span class="label-icon">Registros Gerais</span></div>', unsafe_allow_html=True)
+    for nome, icone, desc, coluna in botoes:
+        with coluna:
+            # Renderiza o botão
+            st.button(nome)
+            
+            # Renderiza o ícone e a legenda CENTRALIZADOS via HTML/CSS
+            st.markdown(f"""
+                <div style="
+                    display: flex; 
+                    flex-direction: column; 
+                    align-items: center; 
+                    justify-content: center; 
+                    width: 100%; 
+                    margin-top: 10px; 
+                    margin-bottom: 30px;
+                    color: white;
+                ">
+                    <span style="font-size: 45px;">{icone}</span>
+                    <span style="font-size: 14px; opacity: 0.8; font-weight: bold;">{desc}</span>
+                </div>
+            """, unsafe_allow_html=True)
 
-    with col3:
-        if st.button("Balança"): pass
-        st.markdown('<div class="icon-box">⚖️<br><span class="label-icon">Pesagem Oficial</span></div>', unsafe_allow_html=True)
-        
-        if st.button("Dashboard"): pass
-        st.markdown('<div class="icon-box">📈<br><span class="label-icon">Indicadores Zion</span></div>', unsafe_allow_html=True)
-
-    # Botão de Voltar centralizado na parte inferior
-    st.write("")
-    _, col_centro, _ = st.columns([2, 1, 2])
-    with col_centro:
-        if st.button("VOLTAR PARA LOGIN", kind="secondary"):
+    # --- BOTÃO VOLTAR CENTRALIZADO NO RODAPÉ ---
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.write("---")
+    
+    # Colunas para centralizar o botão de voltar
+    _, col_central, _ = st.columns([2, 1, 2])
+    with col_central:
+        st.markdown('<div class="btn-voltar-estilo">', unsafe_allow_html=True)
+        if st.button("VOLTAR PARA LOGIN"):
             st.session_state['pagina'] = 'inicio'
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
