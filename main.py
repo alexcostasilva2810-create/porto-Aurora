@@ -88,48 +88,51 @@ if st.session_state['pagina'] == 'inicio':
             st.rerun()
 
 # ==========================================
-# BLOCO 4: TELA DE MENU (AZUL ROYAL) - FINAL
+# BLOCO 4: TELA DE MENU (AZUL ROYAL) - CENTRALIZAÇÃO TOTAL
 # ==========================================
 elif st.session_state['pagina'] == 'menu':
-    aplicar_estilo("#002366") # Mantém fundo Azul Royal
+    aplicar_estilo("#002366")
     
-    # Título MENU na cor AMARELA conforme solicitado
-    st.markdown('<h1 style="color: #FFFF00; text-align: center; font-size: 60px; font-weight: bold; margin-bottom: 50px;">MENU</h1>', unsafe_allow_html=True)
+    # Título MENU em Amarelo
+    st.markdown('<h1 style="color: yellow; text-align: center; font-size: 60px; font-weight: bold;">MENU</h1>', unsafe_allow_html=True)
     
-    # Estrutura de Colunas
+    # Criamos as colunas
     col1, col2, col3 = st.columns(3)
     
-    # Lista de botões, ícones e descrições
-    botoes = [
-        ("Logistica Patio / ETC", "🚚", "Gestão de Pátio", col1),
-        ("Classificação", "📋", "Controle de Qualidade", col2),
-        ("Balança", "⚖️", "Pesagem Oficial", col3),
-        ("Tombador", "🏗️", "Descarga Hidráulica", col1),
-        ("Tabela Ent/Said", "📊", "Registros Gerais", col2),
-        ("Dashboard", "📈", "Indicadores Zion", col3)
+    # Lista de configuração dos botões
+    botoes_config = [
+        {"nome": "Logistica Patio / ETC", "icon": "🚚", "desc": "Gestão de Pátio", "col": col1},
+        {"nome": "Classificação", "icon": "📋", "desc": "Controle de Qualidade", "col": col2},
+        {"nome": "Balança", "icon": "⚖️", "desc": "Pesagem Oficial", "col": col3},
+        {"nome": "Tombador", "icon": "🏗️", "desc": "Descarga Hidráulica", "col": col1},
+        {"nome": "Tabela Ent/Said", "icon": "📊", "desc": "Registros Gerais", "col": col2},
+        {"nome": "Dashboard", "icon": "📈", "desc": "Indicadores Zion", "col": col3},
     ]
 
-    for nome, icone, desc, coluna in botoes:
-        with coluna:
-            # 1. O Botão Laranja 3D
-            if st.button(nome):
-                st.session_state['modulo_ativo'] = nome
-                # Aqui futuramente chamaremos a função de cada módulo
+    for item in botoes_config:
+        with item["col"]:
+            # Container HTML para forçar a centralização de tudo o que vier dentro da coluna
+            st.markdown('<div style="display: flex; flex-direction: column; align-items: center;">', unsafe_allow_html=True)
             
-            # 2. O Ícone e Legenda (Ajustados conforme imagem 81f586.png)
+            # O Botão
+            if st.button(item["nome"]):
+                st.session_state['modulo'] = item["nome"]
+            
+            # O Ícone e Legenda colados abaixo do botão
             st.markdown(f"""
-                <div style="text-align: center; margin-top: -5px; margin-bottom: 40px; color: white;">
-                    <div style="font-size: 45px; line-height: 1;">{icone}</div>
-                    <div style="font-size: 14px; font-weight: bold; margin-top: 5px;">{desc}</div>
+                <div style="text-align: center; color: white; margin-top: -10px; margin-bottom: 30px;">
+                    <div style="font-size: 45px;">{item['icon']}</div>
+                    <div style="font-size: 14px; font-weight: bold;">{item['desc']}</div>
                 </div>
             """, unsafe_allow_html=True)
+            
+            st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- RODAPÉ: BOTÃO VOLTAR CENTRALIZADO ---
-    st.write("---")
+    # --- BOTÃO VOLTAR ---
+    st.markdown("<br>", unsafe_allow_html=True)
     _, col_v, _ = st.columns([2, 1, 2])
     with col_v:
-        # Usando CSS inline para garantir que o botão de voltar seja cinza
-        st.markdown('<div class="btn-voltar-estilo">', unsafe_allow_html=True)
+        st.markdown('<div class="btn-voltar-estilo" style="display: flex; justify-content: center;">', unsafe_allow_html=True)
         if st.button("VOLTAR PARA LOGIN"):
             st.session_state['pagina'] = 'inicio'
             st.rerun()
