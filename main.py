@@ -1,38 +1,34 @@
 import streamlit as st
 import gspread
-import base64
-import json
-import os
+from google.oauth2.service_account import Credentials
 
-def conectar_definitivo_mesmo():
+def iniciar_sistema_zion():
     try:
-        # 1. Pega o Base64 do Secret
-        encoded_json = st.secrets["gcp_service_account"]["content"].strip()
+        # Carrega as configurações dos Secrets
+        credenciais_dict = dict(st.secrets["gcp_service_account"])
         
-        # 2. Decodifica e limpa as quebras de linha da chave
-        decoded_bytes = base64.b64decode(encoded_json)
-        json_data = json.loads(decoded_bytes)
-        json_data["private_key"] = json_data["private_key"].replace("\\n", "\n")
+        # Garante que as quebras de linha da chave privada sejam interpretadas corretamente
+        credenciais_dict["private_key"] = credenciais_dict["private_key"].replace("\\n", "\n")
         
-        # 3. CRIA UM ARQUIVO DE VERDADE NO SERVIDOR
-        # Isso engana a biblioteca de segurança e evita o erro PEM
-        with open("temp_key.json", "w") as f:
-            json.dump(json_data, f)
+        # Define os escopos necessários
+        escopos = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
         
-        # 4. Autentica lendo o ARQUIVO, não o dicionário
-        # O gspread.service_account aceita o caminho do arquivo
-        client = gspread.service_account(filename="temp_key.json")
+        # Cria as credenciais e autoriza o cliente
+        creds = Credentials.from_service_account_info(credenciais_dict, scopes=escopos)
+        client = gspread.authorize(creds)
         
-        # 5. Remove o arquivo por segurança após conectar
-        os.remove("temp_key.json")
-        
+        # Tenta abrir a planilha e a aba
         return client.open("Zion").worksheet("Tempo")
         
     except Exception as e:
-        st.error(f"Erro persistente: {e}")
+        st.error(f"Erro ao conectar: {e}")
         return None
 
-if st.button("TENTAR CONEXÃO VIA ARQUIVO"):
-    sheet = conectar_definitivo_mesmo()
-    if sheet:
-        st.success("✅ AGORA FOI! Conectado via arquivo físico temporário.")
+# Interface
+if st.button("CONECTAR AO SISTEMA ZION"):
+    aba_tempo = iniciar_sistema_zion()
+    if aba_tempo:
+        st.success("✅ Conexão estabelecida! O sistema já pode ler e gravar dados.")
