@@ -4,22 +4,14 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime
 import pandas as pd
 
-# --- 1. INICIALIZAÇÃO CRÍTICA (RESOLVE O ERRO DA IMAGEM 165018) ---
-if 'etapa' not in st.session_state:
-    st.session_state['etapa'] = 'login'
-if 'user' not in st.session_state:
-    st.session_state['user'] = None
-if 'cargo' not in st.session_state:
-    st.session_state['cargo'] = None
-if 'placa_fixa' not in st.session_state:
-    st.session_state['placa_fixa'] = ""
-if 'tipo_fixo' not in st.session_state:
-    st.session_state['tipo_fixo'] = ""
+# --- 1. INICIALIZAÇÃO TOTAL (PARA MATAR O ERRO DE ATRIBUTO) ---
+for chave in ['etapa', 'user', 'cargo', 'placa_fixa', 'tipo_fixo']:
+    if chave not in st.session_state:
+        st.session_state[chave] = 'login' if chave == 'etapa' else ""
 
 # --- 2. CONFIGURAÇÃO VISUAL ---
-st.set_page_config(page_title="Zion Portuário", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Zion Portuário", layout="wide")
 
-# CSS: Imagem de fundo grãos, legendas pretas e fim dos retângulos brancos
 st.markdown("""
     <style>
     .stApp {
@@ -33,25 +25,29 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. CONEXÃO ---
+# --- 3. FUNÇÃO DE CONEXÃO COM TESTE REAL ---
 def conectar_planilha():
     try:
         creds_info = st.secrets["gcp_service_account"]
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
         creds = Credentials.from_service_account_info(creds_info, scopes=scope)
-        return gspread.authorize(creds).open("Zion").worksheet("Tempo")
+        client = gspread.authorize(creds)
+        # Tenta abrir a planilha 'Zion' e a aba 'Tempo'
+        return client.open("Zion").worksheet("Tempo")
     except Exception as e:
-        st.error(f"Erro de Conexão: {e}")
+        st.error(f"❌ ERRO CRÍTICO DE CONEXÃO: {e}")
         return None
 
-# --- 4. TELA DE LOGIN ---
+# --- 4. FLUXO DE TELAS ---
+
+# TELA DE LOGIN
 if st.session_state.etapa == 'login':
-    st.markdown("<h1 style='text-align:center;'>SISTEMA ZION - LOGIN</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;'>ZION - LOGIN</h1>", unsafe_allow_html=True)
     c1, c2, c3 = st.columns([1, 1, 1])
     with c2:
         u = st.text_input("USUÁRIO").strip().lower()
         s = st.text_input("SENHA", type="password")
-        if st.button("ACESSAR"):
+        if st.button("ENTRAR"):
             if s == "zion123":
                 st.session_state.user = u
                 st.session_state.cargo = "GESTOR" if u in ["admin", "supervisor"] else "OPERADOR"
@@ -60,10 +56,9 @@ if st.session_state.etapa == 'login':
             else:
                 st.error("Senha incorreta")
 
-# --- 5. MENU PRINCIPAL ---
+# MENU PRINCIPAL
 elif st.session_state.etapa == 'menu':
-    st.markdown(f"<h1 style='text-align:center;'>Olá, {st.session_state.user.upper()}</h1>", unsafe_allow_html=True)
-    
+    st.markdown(f"## Olá, {st.session_state.user.upper()}")
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         if st.session_state.cargo == "GESTOR":
@@ -75,25 +70,25 @@ elif st.session_state.etapa == 'menu':
     with col4:
         if st.button("📊 VER TABELA"): st.session_state.etapa = 'tabela'; st.rerun()
     
-    if st.button("🚪 LOGOUT"):
+    if st.button("🚪 SAIR"):
         st.session_state.etapa = 'login'
         st.rerun()
 
-# --- 6. LANÇAMENTOS (OS 21 CAMPOS) ---
+# FORMULÁRIOS (21 CAMPOS)
 elif st.session_state.etapa in ['form_log', 'form_bal', 'form_tom']:
-    st.markdown(f"<h2 style='text-align:center;'>ESTAÇÃO {st.session_state.etapa.split('_')[1].upper()}</h2>", unsafe_allow_html=True)
+    tela_atual = st.session_state.etapa.split('_')[1].upper()
+    st.markdown(f"### ESTAÇÃO {tela_atual}")
     
-    if st.button("⬅️ VOLTAR AO MENU"): st.session_state.etapa = 'menu'; st.rerun()
+    if st.button("⬅️ VOLTAR"): st.session_state.etapa = 'menu'; st.rerun()
 
-    with st.form("form_21_campos"):
-        # Dados que replicam entre as telas
+    with st.form("form_21"):
         c1, c2, c3 = st.columns(3)
         placa = c1.text_input("PLACA", value=st.session_state.placa_fixa)
         tipo = c2.text_input("TIPO", value=st.session_state.tipo_fixo)
         data = c3.text_input("DATA", value=datetime.now().strftime("%d/%m/%Y"))
 
         st.markdown("---")
-        # MAPEAMENTO DOS 21 CAMPOS (Ajustado para sua planilha)
+        # CAMPOS DE HORÁRIOS (MAPEADOS PARA 21 COLUNAS)
         r1, r2, r3, r4 = st.columns(4)
         v1 = r1.text_input("SAÍDA PÁTIO", placeholder="00:00:00")
         v2 = r2.text_input("CHEGADA ETC", placeholder="00:00:00")
@@ -101,30 +96,30 @@ elif st.session_state.etapa in ['form_log', 'form_bal', 'form_tom']:
         v4 = r4.text_input("SAÍDA CLASS.", placeholder="00:00:00")
 
         r5, r6, r7, r8 = st.columns(4)
-        v5 = r5.text_input("ENTRADA BALANÇA", placeholder="00:00:00")
-        v6 = r6.text_input("SAÍDA BALANÇA", placeholder="00:00:00")
+        v5 = r5.text_input("ENTRADA BAL.", placeholder="00:00:00")
+        v6 = r6.text_input("SAÍDA BAL.", placeholder="00:00:00")
         v7 = r7.text_input("ENTRADA TOMB.", placeholder="00:00:00")
         v8 = r8.text_input("SAÍDA TOMB.", placeholder="00:00:00")
 
-        # Completar a lista para garantir 21 colunas na planilha
         if st.form_submit_button("✅ SALVAR REGISTRO"):
             st.session_state.placa_fixa = placa
             st.session_state.tipo_fixo = tipo
-            try:
-                sheet = conectar_planilha()
-                # Monta a linha com 21 posições
-                linha = [placa, tipo, data, v1, v2, v3, v4, v5, v6, v7, v8] + [""] * 10
+            
+            # MONTAGEM DA LINHA COM EXATAMENTE 21 CAMPOS
+            # (Preencha os campos vazios "" conforme as colunas da sua planilha)
+            linha = [placa, tipo, data, v1, v2, v3, v4, v5, v6, v7, v8] + [""] * 10
+            
+            sheet = conectar_planilha()
+            if sheet:
                 sheet.append_row(linha)
-                st.success("Dados enviados com sucesso!")
-            except:
-                st.error("Erro ao salvar.")
+                st.success("LANÇADO COM SUCESSO!")
 
-# --- 7. TELA DE TABELA ---
+# TELA DE TABELA
 elif st.session_state.etapa == 'tabela':
-    st.markdown("<h2 style='text-align:center;'>RELATÓRIO DE LANÇAMENTOS</h2>", unsafe_allow_html=True)
+    st.markdown("## RELATÓRIO DE LANÇAMENTOS")
     if st.button("⬅️ VOLTAR"): st.session_state.etapa = 'menu'; st.rerun()
-    try:
-        df = pd.DataFrame(conectar_planilha().get_all_records())
+    
+    sheet = conectar_planilha()
+    if sheet:
+        df = pd.DataFrame(sheet.get_all_records())
         st.dataframe(df.tail(20), use_container_width=True)
-    except:
-        st.error("Tabela indisponível.")
