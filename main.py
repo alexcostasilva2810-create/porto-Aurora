@@ -2,6 +2,7 @@ import streamlit as st
 import base64
 import json
 import gspread
+import pandas as pd
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 
@@ -25,7 +26,7 @@ if 'pagina' not in st.session_state:
     st.session_state['pagina'] = 'inicio'
 
 # ==============================================================================
-# BLOCO 2: ENGINE DE ESTILO (MÁSCARA MOBILE E NITIDEZ)
+# BLOCO 2: ENGINE DE ESTILO (MÁSCARA MOBILE)
 # ==============================================================================
 def aplicar_visual_celular(cor_fundo_interna):
     st.markdown(f"""
@@ -60,18 +61,16 @@ def aplicar_visual_celular(cor_fundo_interna):
             background-color: #FFFFFF !important;
             color: #000000 !important;
             border-radius: 10px !important;
-            height: 45px !important;
         }}
         div.stButton > button {{
             background-color: #FF8C00;
             color: white;
             border-radius: 12px;
             width: 100%;
-            height: 55px;
-            font-size: 16px;
+            height: 50px;
             font-weight: bold;
-            box-shadow: 0px 5px 0px #B26200;
-            margin-top: 15px;
+            box-shadow: 0px 4px 0px #B26200;
+            margin-top: 10px;
             border: none;
         }}
         </style>
@@ -82,7 +81,7 @@ def aplicar_visual_celular(cor_fundo_interna):
 # ==============================================================================
 if st.session_state['pagina'] == 'inicio':
     aplicar_visual_celular("#2D2D2D") 
-    st.markdown('<div class="texto-branco"><h1 style="font-size: 35px;">Seja Bem Vindo</h1><p style="font-size: 20px;">ao</p><h1 style="font-size: 35px;">Zion Tecnologia</h1><br><br><h2 style="font-size: 28px; color: #FFD700 !important;">Transdourado</h2></div>', unsafe_allow_html=True)
+    st.markdown('<div class="texto-branco"><h1 style="font-size: 35px;">Seja Bem Vindo</h1><br><h1 style="font-size: 35px;">Zion Tecnologia</h1><br><h2 style="font-size: 28px; color: #FFD700 !important;">Transdourado</h2></div>', unsafe_allow_html=True)
     for _ in range(8): st.write("")
     if st.button("ACESSO"):
         st.session_state['pagina'] = 'menu'
@@ -97,67 +96,79 @@ elif st.session_state['pagina'] == 'menu':
     if st.button("Logistica Patio / ETC"):
         st.session_state['pagina'] = 'logistica'
         st.rerun()
-    if st.button("Classificação"): pass
-    if st.button("Balança"): pass
-    if st.button("Tombador"): pass
-    if st.button("Tabela Ent/Said"): pass
-    if st.button("Dashboard"): pass
-    st.write("")
+    if st.button("Visualizar Lançamentos"):
+        st.session_state['pagina'] = 'visualizar'
+        st.rerun()
     if st.button("SAIR DO SISTEMA"):
         st.session_state['pagina'] = 'inicio'
         st.rerun()
 
 # ==============================================================================
-# BLOCO 5: TELA LOGÍSTICA PÁTIO / ETC (CORREÇÃO DE COLUNAS E CÁLCULO)
+# BLOCO 5: TELA LOGÍSTICA PÁTIO (SALVAMENTO E LIMPEZA)
 # ==============================================================================
 elif st.session_state['pagina'] == 'logistica':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LOGÍSTICA PÁTIO</h1>', unsafe_allow_html=True)
     
+    # clear_on_submit=True garante que os campos limpem ao salvar
     with st.form("form_logistica", clear_on_submit=True):
-        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">PLACA</p>', unsafe_allow_html=True)
-        placa = st.text_input("placa_input", placeholder="JVV-7606", label_visibility="collapsed")
-        
-        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">TIPO DE CAMINHÃO</p>', unsafe_allow_html=True)
-        tipo_camiao = st.selectbox("tipo_input", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"], label_visibility="collapsed")
-        
-        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">DATA</p>', unsafe_allow_html=True)
-        data_input = st.date_input("data_input", datetime.now(), format="DD/MM/YYYY", label_visibility="collapsed")
-        
-        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">SAÍDA DO PÁTIO (HH:MM:SS)</p>', unsafe_allow_html=True)
-        saida_patio = st.text_input("saida_input", value="08:10:00", key="saida_key", label_visibility="collapsed")
-        
-        st.markdown('<p style="color:white; font-weight:bold; margin-bottom:-5px;">CHEGADA ETC (HH:MM:SS)</p>', unsafe_allow_html=True)
-        chegada_etc = st.text_input("chegada_input", value="10:00:00", key="chegada_key", label_visibility="collapsed")
+        placa = st.text_input("PLACA", placeholder="JVV-7606")
+        tipo_camiao = st.selectbox("TIPO DE CAMINHÃO", ["Bitrem", "Rodotrem", "Vanderleia", "Truck", "Carreta"])
+        data_input = st.date_input("DATA", datetime.now(), format="DD/MM/YYYY")
+        saida_patio = st.text_input("SAÍDA DO PÁTIO (HH:MM:SS)", value="08:00:00")
+        chegada_etc = st.text_input("CHEGADA ETC (HH:MM:SS)", value="10:00:00")
 
         btn_salvar = st.form_submit_button("SALVAR REGISTRO")
 
         if btn_salvar:
             try:
-                # 1. Ajuste da Data para padrão BR
-                data_br = data_input.strftime("%d/%m/%Y")
-                
-                # 2. Cálculo do TT. VIAGEM
+                data_br = data_input.strftime("%d/%m/%Y") # Formato 12/04/2026
                 fmt = '%H:%M:%S'
-                t_saida = datetime.strptime(saida_patio, fmt)
-                t_chegada = datetime.strptime(chegada_etc, fmt)
-                delta = t_chegada - t_saida
+                delta = datetime.strptime(chegada_etc, fmt) - datetime.strptime(saida_patio, fmt)
                 tt_viagem = str(delta)
 
                 planilha = conectar_planilha()
                 if planilha:
                     aba = planilha.worksheet("Tempo")
-                    
-                    # 3. Ordem correta das colunas conforme sua planilha
-                    # PLACA | CAMINHÃO | DATA | SAÍDA DO PATIO | CHEGADA ETC | TT. VIAGEM
-                    nova_linha = [placa, tipo_camiao, data_br, saida_patio, chegada_etc, tt_viagem]
-                    
-                    aba.append_row(nova_linha)
-                    st.success(f"Salvo! Viagem de {tt_viagem}")
+                    # Ordem: PLACA | CAMINHÃO | DATA | SAÍDA | CHEGADA | TT. VIAGEM
+                    aba.append_row([placa, tipo_camiao, data_br, saida_patio, chegada_etc, tt_viagem])
+                    st.success(f"Salvo! Viagem: {tt_viagem}")
                 else:
                     st.error("Erro na planilha!")
-            except Exception as e:
-                st.error(f"Erro nos dados: Verifique se o horário está como 00:00:00")
+            except:
+                st.error("Verifique os horários!")
+
+    if st.button("VOLTAR AO MENU"):
+        st.session_state['pagina'] = 'menu'
+        st.rerun()
+
+# ==============================================================================
+# BLOCO 6: VISUALIZAR E EXPORTAR
+# ==============================================================================
+elif st.session_state['pagina'] == 'visualizar':
+    aplicar_visual_celular("#002366")
+    st.markdown('<h1 class="titulo-amarelo">LANÇAMENTOS</h1>', unsafe_allow_html=True)
+    
+    planilha = conectar_planilha()
+    if planilha:
+        aba = planilha.worksheet("Tempo")
+        dados = aba.get_all_records()
+        df = pd.DataFrame(dados)
+        
+        if not df.empty:
+            # Mostra a tabela dentro da máscara
+            st.dataframe(df, height=300)
+            
+            # Exportação para CSV (Excel lê direto)
+            csv = df.to_csv(index=False).encode('utf-8')
+            st.download_button(
+                label="EXPORTAR PARA PLANILHA (CSV)",
+                data=csv,
+                file_name=f'zion_logistica_{datetime.now().strftime("%d_%m_%Y")}.csv',
+                mime='text/csv',
+            )
+        else:
+            st.warning("Nenhum dado encontrado.")
 
     if st.button("VOLTAR AO MENU"):
         st.session_state['pagina'] = 'menu'
