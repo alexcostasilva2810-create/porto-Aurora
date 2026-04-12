@@ -1,55 +1,39 @@
 import streamlit as st
 
-# Configuração da página (deve ser a primeira linha)
+# 1. Configuração da página (DEVE ser a primeira coisa)
 st.set_page_config(page_title="Sistema Zion", layout="wide")
 
-# 1. ESTILIZAÇÃO (Cor Prata e Ajustes)
+# 2. ESTILIZAÇÃO (Corrigido para não dar erro)
 st.markdown(
     """
     <style>
-    /* Fundo da aplicação em Prata */
     .stApp {
         background-color: #C0C0C0;
     }
     
-    /* Container para empurrar o conteúdo para o fundo da tela */
-    .footer-container {
-        position: fixed;
-        left: 20px;
-        bottom: 30px;
-    }
-    
-    /* Estilo customizado para o botão se quiser algo mais específico */
+    /* Estilo para o botão no canto inferior */
     div.stButton > button {
         background-color: #4A4A4A;
         color: white;
-        border-radius: 5px;
-        padding: 10px 25px;
+        font-weight: bold;
+        border-radius: 8px;
+        padding: 0.5rem 2rem;
     }
     </style>
     """,
-    unsafe_allow_stdio=True,
-    unsafe_allow_html=True
+    unsafe_allow_html=True  # O erro estava aqui!
 )
 
-# 2. CONTEÚDO DA TELA
+# 3. CONTEÚDO
 st.title("SISTEMA ZION")
-st.subheader("Bem-vindo ao painel de controle.")
 
-# 3. BOTÃO NO CANTO INFERIOR ESQUERDO
-# Usamos um container fixado via CSS ou apenas o posicionamento natural com spacers
-with st.container():
-    # Cria um espaço grande para empurrar o botão para baixo
-    for _ in range(20): 
-        st.write("")
-        
-    col1, col2, col3 = st.columns([1, 2, 2])
-    
-    with col1:
-        if st.button("ACESSO"):
-            st.session_state['logado'] = True
-            st.rerun()
+# 4. BOTÃO NO CANTO INFERIOR ESQUERDO
+# Criamos um espaço vazio para empurrar o botão para baixo
+for _ in range(15):
+    st.write("")
 
-# Feedback visual simples
-if st.session_state.get('logado'):
-    st.success("Acesso liberado!")
+col1, col2 = st.columns([1, 4])
+with col1:
+    if st.button("ACESSO"):
+        st.session_state['pagina'] = 'dashboard'
+        st.rerun()
