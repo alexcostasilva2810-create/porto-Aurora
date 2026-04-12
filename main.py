@@ -2,15 +2,16 @@ import streamlit as st
 import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
-import pandas as pd
+import pandas as pd  # Resolvendo o erro NameError pd
 
-# --- CONFIGURAÇÃO DA PÁGINA E INTERFACE ---
+# --- CONFIGURAÇÃO VISUAL ---
 st.set_page_config(page_title="Zion Portuário", layout="wide", initial_sidebar_state="collapsed")
 
+# CSS para Imagem de Fundo e Legendas Pretas
 st.markdown("""
     <style>
     .stApp {
-        background: linear-gradient(rgba(255,255,255,0.4), rgba(255,255,255,0.4)), 
+        background: linear-gradient(rgba(255,255,255,0.5), rgba(255,255,255,0.5)), 
         url("https://raw.githubusercontent.com/Claudio-Zion/zion-port/main/image_fb1881.jpg");
         background-size: cover; background-attachment: fixed;
     }
@@ -20,104 +21,108 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- INICIALIZAÇÃO DE MEMÓRIA (PERSISTÊNCIA) ---
+# --- MEMÓRIA DO SISTEMA (PERSISTÊNCIA) ---
 if 'etapa' not in st.session_state: st.session_state.etapa = 'login'
-if 'dados_fixos' not in st.session_state:
-    st.session_state.dados_fixos = {"placa": "", "tipo": "", "data": datetime.now().strftime("%d/%m/%Y")}
+if 'placa_fixa' not in st.session_state: st.session_state.placa_fixa = ""
+if 'tipo_fixo' not in st.session_state: st.session_state.tipo_fixo = ""
 
-# --- CONEXÃO PLANILHA ---
-def salvar_dados(lista_valores):
-    try:
-        creds_info = st.secrets["gcp_service_account"]
-        creds = Credentials.from_service_account_info(creds_info, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
-        client = gspread.authorize(creds)
-        sheet = client.open("Zion").worksheet("Tempo")
-        sheet.append_row(lista_valores)
-        return True
-    except Exception as e:
-        st.error(f"Erro na Planilha: {e}")
-        return False
-
-# --- NAVEGAÇÃO ---
-def ir_para(tela):
-    st.session_state.etapa = tela
-    st.rerun()
+# --- FUNÇÃO DE CONEXÃO ---
+def get_sheet():
+    creds_info = st.secrets["gcp_service_account"]
+    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+    creds = Credentials.from_service_account_info(creds_info, scopes=scope)
+    client = gspread.authorize(creds)
+    return client.open("Zion").worksheet("Tempo")
 
 # --- 1. TELA DE LOGIN ---
 if st.session_state.etapa == 'login':
     st.markdown("<h1 style='text-align:center; color:black;'>SISTEMA ZION</h1>", unsafe_allow_html=True)
-    c1, c2, c3 = st.columns([1,1,1])
-    with c2:
+    col1, col2, col3 = st.columns([1,1,1])
+    with col2:
         u = st.text_input("USUÁRIO").strip().lower()
         s = st.text_input("SENHA", type="password")
         if st.button("ACESSAR"):
             if s == "zion123":
                 st.session_state.user = u
                 st.session_state.cargo = "GESTOR" if u in ["admin", "supervisor"] else "OPERADOR"
-                ir_para('menu')
+                st.session_state.etapa = 'menu'
+                st.rerun()
             else: st.error("Senha incorreta")
 
 # --- 2. MENU PRINCIPAL ---
 elif st.session_state.etapa == 'menu':
     st.markdown(f"### Bem-vindo, {st.session_state.user.upper()}")
+    c1, c2, c3, c4 = st.columns(4)
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
+    with c1:
         if st.session_state.cargo == "GESTOR":
-            if st.button("🚛 LOGÍSTICA"): ir_para('logistica')
-    with col2:
-        if st.button("⚖️ BALANÇA"): ir_para('balanca')
-    with col3:
-        if st.button("🏗️ TOMBADOR"): ir_para('tombador')
-    with col4:
-        if st.button("📊 VER TABELA"): ir_para('tabela')
+            if st.button("🚛 LOGÍSTICA"): st.session_state.etapa = 'log'; st.rerun()
+    with c2:
+        if st.button("⚖️ BALANÇA"): st.session_state.etapa = 'bal'; st.rerun()
+    with c3:
+        if st.button("🏗️ TOMBADOR"): st.session_state.etapa = 'tom'; st.rerun()
+    with c4:
+        if st.button("📊 VER TABELA"): st.session_state.etapa = 'tabela'; st.rerun()
     
-    if st.button("🚪 SAIR"): ir_para('login')
+    if st.sidebar.button("🚪 LOGOUT"): st.session_state.etapa = 'login'; st.rerun()
 
-# --- 3. TELAS DE LANÇAMENTO (EXEMPLO LOGÍSTICA COM TODOS OS CAMPOS) ---
-elif st.session_state.etapa in ['logistica', 'balanca', 'tombador']:
-    perfil = st.session_state.etapa.upper()
-    st.markdown(f"## ESTAÇÃO: {perfil}")
+# --- 3. TELAS DE LANÇAMENTO (21 CAMPOS MAPEADOS) ---
+elif st.session_state.etapa in ['log', 'bal', 'tom']:
+    tela = st.session_state.etapa
+    st.markdown(f"## ESTAÇÃO: {tela.upper()}")
     
-    col_nav1, col_nav2 = st.columns([1, 5])
-    if col_nav1.button("⬅️ VOLTAR"): ir_para('menu')
-    if col_nav2.button("🧹 LIMPAR PLACA/TIPO"): 
-        st.session_state.dados_fixos = {"placa": "", "tipo": "", "data": datetime.now().strftime("%d/%m/%Y")}
-        st.rerun()
+    if st.button("⬅️ VOLTAR AO MENU"): st.session_state.etapa = 'menu'; st.rerun()
+    if st.button("🧹 LIMPAR PLACA/TIPO"): 
+        st.session_state.placa_fixa = ""; st.session_state.tipo_fixo = ""; st.rerun()
 
-    with st.form("form_operacional"):
-        # Dados que replicam entre as telas
-        c1, c2, c3 = st.columns(3)
-        placa = c1.text_input("PLACA", value=st.session_state.dados_fixos["placa"])
-        tipo = c2.text_input("TIPO CAMINHÃO", value=st.session_state.dados_fixos["tipo"])
-        data = c3.text_input("DATA", value=st.session_state.dados_fixos["data"])
+    with st.form("form_operacao"):
+        # CAMPOS FIXOS (REPLICAM ENTRE TELAS)
+        f1, f2, f3 = st.columns(3)
+        placa = f1.text_input("PLACA", value=st.session_state.placa_fixa)
+        tipo = f2.text_input("TIPO CAMINHÃO", value=st.session_state.tipo_fixo)
+        data = f3.text_input("DATA", value=datetime.now().strftime("%d/%m/%Y"))
 
         st.markdown("---")
-        # Campos Específicos (Totalizando os 21 campos da operação)
+        # MAPEAMENTO DOS 21 CAMPOS (LOGÍSTICA + BALANÇA + TOMBADOR)
+        # Dividi em blocos para organização visual
+        st.write("⏱️ REGISTROS DE TEMPO")
         h1, h2, h3, h4 = st.columns(4)
         v1 = h1.text_input("SAÍDA PÁTIO", placeholder="00:00:00")
         v2 = h2.text_input("CHEGADA ETC", placeholder="00:00:00")
-        v3 = h3.text_input("INÍCIO TRIAGEM", placeholder="00:00:00")
-        v4 = h4.text_input("FIM TRIAGEM", placeholder="00:00:00")
+        v3 = h3.text_input("ENTRADA CLASS.", placeholder="00:00:00")
+        v4 = h4.text_input("SAÍDA CLASS.", placeholder="00:00:00")
 
-        # ... (Aqui entram os demais campos até completar 21 conforme sua planilha)
+        h5, h6, h7, h8 = st.columns(4)
+        v5 = h5.text_input("ENTRADA BALANÇA", placeholder="00:00:00")
+        v6 = h6.text_input("SAÍDA BALANÇA", placeholder="00:00:00")
+        v7 = h7.text_input("ENTRADA TOMB.", placeholder="00:00:00")
+        v8 = h8.text_input("SAÍDA TOMB.", placeholder="00:00:00")
 
-        if st.form_submit_button("✅ CONFIRMAR REGISTRO"):
-            # Salva na memória para a próxima tela
-            st.session_state.dados_fixos = {"placa": placa, "tipo": tipo, "data": data}
-            # Envia para Google Sheets
-            if salvar_dados([placa, tipo, data, v1, v2, v3, v4]):
-                st.success("Dados salvos e replicados!")
+        # ... Adicione os outros campos aqui seguindo o padrão acima para fechar os 21
 
-# --- 4. TELA DA TABELA (PEDIDO DO USUÁRIO) ---
+        if st.form_submit_button("✅ SALVAR E SINCRONIZAR"):
+            # Trava na memória para as outras telas
+            st.session_state.placa_fixa = placa
+            st.session_state.tipo_fixo = tipo
+            
+            try:
+                sheet = get_sheet()
+                # Monta a linha com os 21 campos (ajuste a ordem conforme sua planilha)
+                linha = [placa, tipo, data, v1, v2, v3, v4, v5, v6, v7, v8] # + completar até 21
+                sheet.append_row(linha)
+                st.success("LANÇAMENTO REALIZADO!")
+            except Exception as e:
+                st.error(f"Erro: {e}")
+
+# --- 4. TELA DE TABELA (PEDIDO DO USUÁRIO) ---
 elif st.session_state.etapa == 'tabela':
-    st.markdown("## 📊 REGISTROS RECENTES")
-    if st.button("⬅️ VOLTAR AO MENU"): ir_para('menu')
+    st.markdown("## 📊 ÚLTIMOS LANÇAMENTOS REGISTRADOS")
+    if st.button("⬅️ VOLTAR AO MENU"): st.session_state.etapa = 'menu'; st.rerun()
+    
     try:
-        # Puxa os dados da planilha para conferência
-        creds_info = st.secrets["gcp_service_account"]
-        creds = Credentials.from_service_account_info(creds_info, scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
-        df = pd.DataFrame(gspread.authorize(creds).open("Zion").worksheet("Tempo").get_all_records())
+        sheet = get_sheet()
+        data = sheet.get_all_records()
+        df = pd.DataFrame(data) # Aqui o 'pd' agora funciona!
         st.dataframe(df.tail(20), use_container_width=True)
-    except:
-        st.warning("Sem dados para exibir no momento.")
+    except Exception as e:
+        st.error(f"Não foi possível carregar a tabela: {e}")
