@@ -4,34 +4,45 @@ from google.oauth2.service_account import Credentials
 import base64
 import json
 
-def conectar_zion_definitivo():
+def conectar_zion_forca_bruta():
     try:
-        # Lê a string Base64 dos Secrets
-        encoded_json = st.secrets["gcp_service_account"]["content"]
+        # 1. Pega o Base64 e remove qualquer espaço que você possa ter colado sem querer
+        encoded_json = st.secrets["gcp_service_account"]["content"].strip()
         
-        # Decodifica para texto (JSON)
+        # 2. Decodifica
         decoded_bytes = base64.b64decode(encoded_json)
-        service_account_info = json.loads(decoded_bytes)
+        json_data = json.loads(decoded_bytes)
         
-        # Corrige as quebras de linha da chave (onde dava o erro de byte 61)
-        service_account_info["private_key"] = service_account_info["private_key"].replace("\\n", "\n")
+        # 3. LIMPEZA DA CHAVE PRIVADA (Onde o erro 1625 acontece)
+        # Removemos tudo o que não for a chave pura e reconstruímos
+        raw_key = json_data["private_key"]
         
-        # Autentica
-        scopes = [
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]
-        creds = Credentials.from_service_account_info(service_account_info, scopes=scopes)
+        # Remove cabeçalhos, rodapés, quebras de linha e espaços
+        clean_key = raw_key.replace("-----BEGIN PRIVATE KEY-----", "")
+        clean_key = clean_key.replace("-----END PRIVATE KEY-----", "")
+        clean_key = clean_key.replace("\\n", "").replace("\n", "").replace(" ", "").strip()
+        
+        # Reconstrói do zero no formato que o Google AMA (com quebras de linha reais)
+        # Isso mata o erro InvalidByte de uma vez por todas
+        final_key = "-----BEGIN PRIVATE KEY-----\n"
+        for i in range(0, len(clean_key), 64):
+            final_key += clean_key[i:i+64] + "\n"
+        final_key += "-----END PRIVATE KEY-----\n"
+        
+        json_data["private_key"] = final_key
+        
+        # 4. Tenta conectar
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(json_data, scopes=scopes)
         client = gspread.authorize(creds)
         
-        # Abre a planilha "Zion" e a aba "Tempo"
         return client.open("Zion").worksheet("Tempo")
+        
     except Exception as e:
-        st.error(f"Erro na conexão definitiva: {e}")
+        st.error(f"Erro na força bruta: {e}")
         return None
 
-# Teste o botão
-if st.button("TESTAR CONEXÃO AGORA"):
-    sheet = conectar_zion_definitivo()
+if st.button("TENTATIVA FINAL - FORÇA BRUTA"):
+    sheet = conectar_zion_forca_bruta()
     if sheet:
-        st.success("✅ AGORA FOI! O sistema está conectado à planilha.")
+        st.success("✅ FINALMENTE! Conectado e chave reconstruída com sucesso.")
