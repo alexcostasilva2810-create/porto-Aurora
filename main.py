@@ -1,106 +1,105 @@
 import streamlit as st
 import base64
 import json
+import gspread
+from google.oauth2.service_account import Credentials
 
-# ==========================================
-# BLOCO 1: MOLDURA SMARTPHONE E ESTILO NITIDEZ
-# ==========================================
-st.set_page_config(page_title="Zion Mobile", layout="centered")
+# ==============================================================================
+# BLOCO 1: CONFIGURAÇÕES, CONEXÃO E NAVEGAÇÃO
+# ==============================================================================
+st.set_page_config(page_title="Zion Tecnologia", layout="centered")
 
+def conectar_planilha():
+    try:
+        b64_content = st.secrets["gcp_service_account"]["content"]
+        json_info = json.loads(base64.b64decode(b64_content).decode('utf-8'))
+        json_info["private_key"] = json_info["private_key"].replace("\\n", "\n")
+        scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
+        creds = Credentials.from_service_account_info(json_info, scopes=scopes)
+        return gspread.authorize(creds).open("Zion")
+    except:
+        return None
+
+if 'pagina' not in st.session_state:
+    st.session_state['pagina'] = 'inicio'
+
+# ==============================================================================
+# BLOCO 2: ENGINE DE ESTILO (MÁSCARA MOBILE E NITIDEZ)
+# ==============================================================================
 def aplicar_visual_celular(cor_fundo_interna):
     st.markdown(f"""
         <style>
-        /* Fundo externo escuro para destacar o celular */
-        .stApp {{
-            background-color: #121212;
-        }}
-
-        /* Container que simula o corpo do celular */
+        .stApp {{ background-color: #121212; }}
+        
         .main .block-container {{
             max-width: 380px;
             min-height: 800px;
             background-color: {cor_fundo_interna};
-            border: 12px solid #333; /* Moldura do celular */
-            border-radius: 45px;
+            border: 10px solid #444;
+            border-radius: 40px;
             padding: 40px 20px;
-            margin-top: 20px;
-            box-shadow: 0px 0px 30px rgba(0,0,0,0.8);
-            position: relative;
+            margin-top: 10px;
+            box-shadow: 0px 0px 25px rgba(0,0,0,0.9);
         }}
 
-        /* Texto com nitidez máxima (Cor sólida e sombra leve) */
-        .texto-nitido {{
+        .texto-branco {{
             color: #FFFFFF !important;
             text-align: center;
-            font-family: 'Helvetica', sans-serif;
-            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
-            line-height: 1.2;
+            font-family: 'Arial', sans-serif;
+            text-shadow: 2px 2px 4px rgba(0,0,0,1);
+            font-weight: bold;
         }}
 
-        /* Título Amarelo Vibrante */
-        .titulo-menu {{
+        .titulo-amarelo {{
             color: #FFFF00 !important;
             text-align: center;
-            font-size: 45px;
+            font-size: 40px;
             font-weight: 900;
-            margin-bottom: 40px;
-            text-shadow: 2px 2px 0px #000;
+            text-shadow: 2px 2px 2px #000;
         }}
 
-        /* Botões Laranja 3D */
         div.stButton > button {{
             background-color: #FF8C00;
             color: white;
-            font-weight: bold;
-            border-radius: 15px;
-            border: none;
+            border-radius: 12px;
             width: 100%;
-            height: 65px;
+            height: 60px;
             font-size: 18px;
-            box-shadow: 0px 6px 0px #CC7000;
-            margin-bottom: 25px; /* Distância de 3cm visual */
-            transition: all 0.1s ease;
-        }}
-        div.stButton > button:active {{
-            box-shadow: 0px 2px 0px #CC7000;
-            transform: translateY(4px);
+            box-shadow: 0px 5px 0px #B26200;
+            margin-bottom: 25px;
+            border: none;
         }}
         </style>
     """, unsafe_allow_html=True)
 
-# Inicializa navegação
-if 'pagina' not in st.session_state:
-    st.session_state['pagina'] = 'inicio'
-
-# ==========================================
-# BLOCO 2: TELA INICIAL (MOLDURA CINZA)
-# ==========================================
+# ==============================================================================
+# BLOCO 3: TELA DE LOGIN / INÍCIO (VISUAL MOBILE)
+# ==============================================================================
 if st.session_state['pagina'] == 'inicio':
-    aplicar_visual_celular("#C0C0C0") # Cinza Prata
+    aplicar_visual_celular("#333333") 
     
-    st.markdown('<div class="texto-nitido">', unsafe_allow_html=True)
-    st.markdown('<h1 style="font-size: 40px; color: #1a1a1a;">Seja Bem Vindo</h1>', unsafe_allow_html=True)
-    st.markdown('<p style="font-size: 25px; color: #333;">ao</p>', unsafe_allow_html=True)
-    st.markdown('<h1 style="font-size: 40px; color: #1a1a1a;">Zion Tecnologia</h1>', unsafe_allow_html=True)
-    st.markdown('<br><br><br>', unsafe_allow_html=True)
-    st.markdown('<h2 style="font-size: 28px; color: #1a1a1a;">Transdourado</h2>', unsafe_allow_html=True)
+    st.markdown('<div class="texto-branco">', unsafe_allow_html=True)
+    st.markdown('<h1 style="font-size: 35px;">Seja Bem Vindo</h1>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size: 20px;">ao</p>', unsafe_allow_html=True)
+    st.markdown('<h1 style="font-size: 35px;">Zion Tecnologia</h1>', unsafe_allow_html=True)
+    st.markdown('<br><br>', unsafe_allow_html=True)
+    st.markdown('<h2 style="font-size: 26px; color: #FFD700 !important;">Transdourado</h2>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     
-    for _ in range(5): st.write("")
+    for _ in range(8): st.write("")
     
     if st.button("ACESSO"):
         st.session_state['pagina'] = 'menu'
         st.rerun()
 
-# ==========================================
-# BLOCO 3: TELA DE MENU (MOLDURA AZUL ROYAL)
-# ==========================================
+# ==============================================================================
+# BLOCO 4: TELA DE MENU PRINCIPAL (VISUAL MOBILE)
+# ==============================================================================
 elif st.session_state['pagina'] == 'menu':
-    aplicar_visual_celular("#002366") # Azul Royal
+    aplicar_visual_celular("#002366") 
     
-    st.markdown('<h1 class="titulo-menu">MENU</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="titulo-amarelo">MENU</h1>', unsafe_allow_html=True)
     
-    # Botões empilhados para Mobile
     if st.button("Logistica Patio / ETC"): pass
     if st.button("Classificação"): pass
     if st.button("Balança"): pass
@@ -108,7 +107,6 @@ elif st.session_state['pagina'] == 'menu':
     if st.button("Tabela Ent/Said"): pass
     if st.button("Dashboard"): pass
 
-    # Botão de Voltar centralizado no pé do celular
     st.markdown('<br>', unsafe_allow_html=True)
     if st.button("VOLTAR PARA LOGIN"):
         st.session_state['pagina'] = 'inicio'
