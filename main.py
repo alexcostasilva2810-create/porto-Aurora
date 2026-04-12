@@ -106,26 +106,31 @@ elif st.session_state['pagina'] == 'logistica':
 elif st.session_state['pagina'] == 'visualizar':
     aplicar_visual_celular("#002366")
     st.markdown('<h1 class="titulo-amarelo">LANÇAMENTOS</h1>', unsafe_allow_html=True)
+    
     aba = conectar_planilha()
     if aba:
         try:
-            # Pega tudo e transforma em tabela
+            # get_all_values é o método mais seguro após uma limpeza manual
             dados_brutos = aba.get_all_values()
+            
             if len(dados_brutos) > 1:
+                # Criamos o DataFrame e garantimos que não haja lixo de memória
                 df = pd.DataFrame(dados_brutos[1:], columns=dados_brutos[0])
                 
-                # SOLUÇÃO PARA O ERRO: Remove linhas onde a PLACA está vazia ou é inválida
-                df = df[df['PLACA'].str.strip() != ""] 
+                # Remove qualquer linha que tenha ficado com espaços em branco
+                df = df[df['PLACA'].str.strip() != ""]
                 
-                st.dataframe(df, use_container_width=True, height=400)
-                
-                # Botão de Exportação
-                csv = df.to_csv(index=False).encode('utf-8')
-                st.download_button("EXPORTAR PARA PLANILHA", csv, "Zion_Patio.csv", "text/csv")
+                if not df.empty:
+                    st.dataframe(df, use_container_width=True, height=400)
+                    
+                    csv = df.to_csv(index=False).encode('utf-8')
+                    st.download_button("BAIXAR RELATÓRIO", csv, " Zion_Logistica.csv", "text/csv")
+                else:
+                    st.info("Nenhum dado válido encontrado após a limpeza.")
             else:
-                st.info("Planilha vazia.")
+                st.info("A planilha está vazia.")
         except Exception as e:
-            st.error("Erro ao processar dados. Limpe as linhas vazias da sua planilha!")
+            st.error("Erro ao carregar os novos dados. Tente atualizar a página (F5).")
     
     if st.button("VOLTAR"):
         st.session_state['pagina'] = 'menu'
