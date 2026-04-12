@@ -88,51 +88,53 @@ if st.session_state['pagina'] == 'inicio':
             st.rerun()
 
 # ==========================================
-# BLOCO 4: TELA DE MENU (AZUL ROYAL) - CENTRALIZAÇÃO TOTAL
+# BLOCO 4: TELA DE MENU (AZUL ROYAL) - COMPACTO
 # ==========================================
 elif st.session_state['pagina'] == 'menu':
     aplicar_estilo("#002366")
     
-    # Título MENU em Amarelo
-    st.markdown('<h1 style="color: yellow; text-align: center; font-size: 60px; font-weight: bold;">MENU</h1>', unsafe_allow_html=True)
+    # Título MENU Amarelo
+    st.markdown('<h1 style="color: yellow; text-align: center; font-size: 50px; font-weight: bold; margin-bottom: 30px;">MENU</h1>', unsafe_allow_html=True)
     
-    # Criamos as colunas
+    # CSS para forçar o espaçamento de "3cm" (aprox. 110px) e visual compacto
+    st.markdown("""
+        <style>
+        /* Ajusta o espaçamento entre as colunas e linhas do Streamlit */
+        [data-testid="stHorizontalBlock"] {
+            gap: 80px !important; /* Distância horizontal entre botões */
+        }
+        .stButton {
+            margin-bottom: 60px !important; /* Distância vertical entre botões */
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    # Organização em 3 colunas para visual compacto
     col1, col2, col3 = st.columns(3)
     
-    # Lista de configuração dos botões
-    botoes_config = [
-        {"nome": "Logistica Patio / ETC", "icon": "🚚", "desc": "Gestão de Pátio", "col": col1},
-        {"nome": "Classificação", "icon": "📋", "desc": "Controle de Qualidade", "col": col2},
-        {"nome": "Balança", "icon": "⚖️", "desc": "Pesagem Oficial", "col": col3},
-        {"nome": "Tombador", "icon": "🏗️", "desc": "Descarga Hidráulica", "col": col1},
-        {"nome": "Tabela Ent/Said", "icon": "📊", "desc": "Registros Gerais", "col": col2},
-        {"nome": "Dashboard", "icon": "📈", "desc": "Indicadores Zion", "col": col3},
-    ]
+    with col1:
+        if st.button("Logistica Patio / ETC"):
+            st.session_state['modulo'] = "logistica"
+        if st.button("Tombador"):
+            st.session_state['modulo'] = "tombador"
+            
+    with col2:
+        if st.button("Classificação"):
+            st.session_state['modulo'] = "classificacao"
+        if st.button("Tabela Ent/Said"):
+            st.session_state['modulo'] = "tabela"
+            
+    with col3:
+        if st.button("Balança"):
+            st.session_state['modulo'] = "balanca"
+        if st.button("Dashboard"):
+            st.session_state['modulo'] = "dashboard"
 
-    for item in botoes_config:
-        with item["col"]:
-            # Container HTML para forçar a centralização de tudo o que vier dentro da coluna
-            st.markdown('<div style="display: flex; flex-direction: column; align-items: center;">', unsafe_allow_html=True)
-            
-            # O Botão
-            if st.button(item["nome"]):
-                st.session_state['modulo'] = item["nome"]
-            
-            # O Ícone e Legenda colados abaixo do botão
-            st.markdown(f"""
-                <div style="text-align: center; color: white; margin-top: -10px; margin-bottom: 30px;">
-                    <div style="font-size: 45px;">{item['icon']}</div>
-                    <div style="font-size: 14px; font-weight: bold;">{item['desc']}</div>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown('</div>', unsafe_allow_html=True)
-
-    # --- BOTÃO VOLTAR ---
-    st.markdown("<br>", unsafe_allow_html=True)
+    # --- BOTÃO VOLTAR CENTRALIZADO ---
+    st.write("") 
     _, col_v, _ = st.columns([2, 1, 2])
     with col_v:
-        st.markdown('<div class="btn-voltar-estilo" style="display: flex; justify-content: center;">', unsafe_allow_html=True)
+        st.markdown('<div class="btn-voltar-estilo">', unsafe_allow_html=True)
         if st.button("VOLTAR PARA LOGIN"):
             st.session_state['pagina'] = 'inicio'
             st.rerun()
