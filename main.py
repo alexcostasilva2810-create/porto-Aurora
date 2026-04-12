@@ -88,51 +88,55 @@ if st.session_state['pagina'] == 'inicio':
             st.rerun()
 
 # ==========================================
-# BLOCO 4: TELA DE MENU (AZUL ROYAL) - COMPACTO
+# BLOCO 4: TELA DE MENU (AZUL ROYAL) - FOCO MOBILE/TABLET
 # ==========================================
 elif st.session_state['pagina'] == 'menu':
     aplicar_estilo("#002366")
     
-    # Título MENU Amarelo
-    st.markdown('<h1 style="color: yellow; text-align: center; font-size: 50px; font-weight: bold; margin-bottom: 30px;">MENU</h1>', unsafe_allow_html=True)
+    # Título MENU Amarelo e Centralizado
+    st.markdown('<h1 style="color: yellow; text-align: center; font-size: 40px; font-weight: bold; margin-bottom: 30px;">MENU</h1>', unsafe_allow_html=True)
     
-    # CSS para forçar o espaçamento de "3cm" (aprox. 110px) e visual compacto
+    # CSS Customizado para Mobile (Botões mais altos e espaçados)
     st.markdown("""
         <style>
-        /* Ajusta o espaçamento entre as colunas e linhas do Streamlit */
-        [data-testid="stHorizontalBlock"] {
-            gap: 80px !important; /* Distância horizontal entre botões */
+        /* Centraliza o bloco de botões no mobile */
+        .main-menu-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 25px; /* Distância vertical entre os botões */
+            width: 100%;
         }
-        .stButton {
-            margin-bottom: 60px !important; /* Distância vertical entre botões */
+        
+        /* Ajusta o tamanho dos botões para toque do dedo */
+        div.stButton > button {
+            width: 280px !important; /* Largura fixa para tablet/celular */
+            height: 70px !important;
+            font-size: 18px !important;
+            margin: 0 auto !important;
+            display: block !important;
         }
         </style>
     """, unsafe_allow_html=True)
 
-    # Organização em 3 colunas para visual compacto
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        if st.button("Logistica Patio / ETC"):
-            st.session_state['modulo'] = "logistica"
-        if st.button("Tombador"):
-            st.session_state['modulo'] = "tombador"
-            
-    with col2:
-        if st.button("Classificação"):
-            st.session_state['modulo'] = "classificacao"
-        if st.button("Tabela Ent/Said"):
-            st.session_state['modulo'] = "tabela"
-            
-    with col3:
-        if st.button("Balança"):
-            st.session_state['modulo'] = "balanca"
-        if st.button("Dashboard"):
-            st.session_state['modulo'] = "dashboard"
+    # Criamos um container centralizado para os botões
+    # No mobile, ignoramos colunas lado a lado para não espremer o texto
+    with st.container():
+        # Usamos uma coluna central para garantir o alinhamento em qualquer tela
+        _, col_central, _ = st.columns([0.1, 0.8, 0.1])
+        
+        with col_central:
+            if st.button("Logistica Patio / ETC"): st.session_state['modulo'] = "logistica"
+            if st.button("Classificação"): st.session_state['modulo'] = "classificacao"
+            if st.button("Balança"): st.session_state['modulo'] = "balanca"
+            if st.button("Tombador"): st.session_state['modulo'] = "tombador"
+            if st.button("Tabela Ent/Said"): st.session_state['modulo'] = "tabela"
+            if st.button("Dashboard"): st.session_state['modulo'] = "dashboard"
 
-    # --- BOTÃO VOLTAR CENTRALIZADO ---
-    st.write("") 
-    _, col_v, _ = st.columns([2, 1, 2])
+    # --- BOTÃO VOLTAR (POSIÇÃO INFERIOR CENTRAL) ---
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    
+    _, col_v, _ = st.columns([0.2, 0.6, 0.2])
     with col_v:
         st.markdown('<div class="btn-voltar-estilo">', unsafe_allow_html=True)
         if st.button("VOLTAR PARA LOGIN"):
